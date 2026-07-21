@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Building2, MapPin, FileDown, Loader2, ShieldCheck, TrendingUp, AlertTriangle } from "lucide-react";
+import { Building2, MapPin, FileDown, Loader2, ShieldCheck } from "lucide-react";
 import { fetchTrades, geocodeToPnu, fetchLandCharacteristics } from "../lib/realDataFetcher";
 import * as XLSX from "xlsx";
 import { addressToLawdCd, recentDealYmd } from "../lib/lawdCodes";
@@ -86,10 +86,6 @@ const ZONE_FAR = {
   "준주거지역": 400,
   "일반상업지역": 800,
 };
-
-function clamp(n, lo, hi) {
-  return Math.max(lo, Math.min(hi, n));
-}
 
 const TIER_SCORE = { 우수: 100, 보통: 50, 위험: 0 };
 const TIER_COLOR = { 우수: "#2F6F5E", 보통: "#8A7A3A", 위험: "#9C3B34" };
@@ -738,8 +734,8 @@ export default function PFReportMVP() {
                   </div>
                 )}
                 <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 10, lineHeight: 1.5 }}>
-                  ※ "금융비"는 여기 포함하지 않습니다 — 대출조건(금리·수수료·기간) 기반으로 별도 계산되어
-                  아래 "금융비용" 항목에 반영되며, 여기서 중복 입력하면 이중 계상됩니다.
+                  ※ “금융비”는 여기 포함하지 않습니다 — 대출조건(금리·수수료·기간) 기반으로 별도 계산되어
+                  아래 “금융비용” 항목에 반영되며, 여기서 중복 입력하면 이중 계상됩니다.
                 </div>
               </>
             )}
@@ -864,7 +860,7 @@ export default function PFReportMVP() {
                   <>
                   <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 8, color: "#1F1C14" }}>Executive Summary</h2>
                   <ul style={{ fontSize: 13, lineHeight: 1.8, color: "#1F1C14", paddingLeft: 18, margin: 0 }}>
-                    <li>본건은 {form.address} '{form.projectType} 사업'의 PF 대출을 요청하는 건으로, 대출금은 토지비·공사비·금융비 등의 용도로 사용될 예정임.</li>
+                    <li>본건은 {form.address} ‘{form.projectType} 사업’의 PF 대출을 요청하는 건으로, 대출금은 토지비·공사비·금융비 등의 용도로 사용될 예정임.</li>
                     <li>대출조건은 대출금리 {result.interestRate}%, 취급수수료 {result.originationFee}%(All-in cost {result.allInCost.toFixed(1)}%), 대출기간 {result.loanTermMonths}개월, LTV {result.ltv.toFixed(1)}%, Exit 분양률 {result.expectedSaleRate}% 가정.</li>
                     <li>세전이익 {fmt(result.profit)}만원(세전이익률 {result.margin.toFixed(1)}%) 수준으로 산출되어 종합 등급 {result.grade}({result.gradeNote})로 평가됨.</li>
                   </ul>
@@ -989,7 +985,7 @@ export default function PFReportMVP() {
 
                   <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>1. 종합 평가항목 (종합점수 {result.compositeScore.toFixed(1)}/100, 9개 항목 균등가중 평균)</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                    "계산값"은 공식으로 산출되어 재현 가능한 값, "평가값"은 사용자 입력 또는 기본값에 따른 정성적 판정입니다.
+                    “계산값”은 공식으로 산출되어 재현 가능한 값, “평가값”은 사용자 입력 또는 기본값에 따른 정성적 판정입니다.
                   </div>
                   <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 4 }}>
                     <thead>

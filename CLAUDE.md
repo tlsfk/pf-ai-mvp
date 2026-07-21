@@ -30,8 +30,8 @@
 
 - [ ] `npm install` 성공
 - [ ] `npm run build` 성공
-- [ ] TypeScript 오류 없음 *(현재 이 프로젝트는 TypeScript 미적용 — 순수 JSX. 해당 없음)*
-- [ ] ESLint 오류 없음 *(현재 이 프로젝트는 ESLint 미설정 — 설정 전까지 해당 없음)*
+- [ ] TypeScript 오류 없음 *(이 프로젝트는 TypeScript 미적용 — 순수 JSX. 해당 없음)*
+- [ ] `npm run lint` 오류/경고 없음 *(2026-07-21 ESLint 9 + flat config 설정 완료)*
 - [ ] 콘솔 오류 없음
 - [ ] 기존 기능 정상 동작
 - [ ] Git commit 완료
