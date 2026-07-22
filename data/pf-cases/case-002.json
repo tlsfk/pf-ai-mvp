@@ -1,32 +1,32 @@
 {
   "id": "case-002",
-  "caseName": "더미 예시: 경기도 신축개발, 정상 진행 시나리오",
-  "status": "dummy",
-  "source": "실제 사례 아님 — 보통 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "caseName": "힐스테이트 동탄역 센트릭 — 계약 4일 만에 완판된 주상복합 오피스텔 사례",
+  "status": "verified",
+  "source": "언론보도(한경닷컴 2022-08-25 분양 예고 기사, 딜사이트·미디어펜 등 분양 정보 기사, 청약 결과 보도: 평균 경쟁률 29.8:1·계약 4일 만에 완판, 2026-07-22 확인) — 위치(화성시 오산동, 동탄2신도시), 대지면적 2,425평(≈8,017㎡), 건축면적 1,671평, 규모(지하4층~지상39층 4개동 400실), 입주예정 2026-03(주거형 오피스텔)은 실제 보도 수치. 시공사(현대건설, '힐스테이트' 브랜드)는 공개적으로 잘 알려진 사실. 정확한 용도지역·시행사명·PF 대출조건(금리·자기자본비율 등)은 비공개라 앱의 기본 미정값을 사용했으며 실제 조건이 아님에 유의.",
   "input": {
-    "address": "경기도 수원시 영통구 000",
-    "area": "2200",
-    "zone": "준주거지역",
+    "address": "경기도 화성시 오산동",
+    "area": "8017",
+    "zone": "일반상업지역",
     "projectType": "신축개발",
-    "lender": "저축은행",
-    "developerTrack": "보통",
-    "contractorGrade": "중견",
+    "lender": "부동산신탁사",
+    "developerTrack": "미정(정보 없음)",
+    "contractorGrade": "1군 건설사",
     "locationTier": "일반 도시",
-    "supplyCompetition": "적정",
-    "creditEnhancement": "일부 보강(자금보충약정 등)",
-    "permitStage": "진행 중",
-    "expectedSaleRate": "78",
-    "equityRatio": "15",
-    "interestRate": "9.5",
-    "originationFee": "1.5",
-    "loanTermMonths": "30"
+    "supplyCompetition": "공급 부족(우호적)",
+    "creditEnhancement": "신용보강 없음/미확인",
+    "permitStage": "완료",
+    "expectedSaleRate": "100",
+    "equityRatio": "20",
+    "interestRate": "9.0",
+    "originationFee": "1.0",
+    "loanTermMonths": "27"
   },
   "actual": {
     "totalCost": null,
-    "salesRate": 74,
+    "salesRate": 100,
     "outcome": "success",
     "actualGrade": null,
-    "notes": "더미 데이터 — 계획 대비 약간 낮은 분양률이지만 사업수지 내 흡수, 정상 준공을 가정한 예시."
+    "notes": "동탄2신도시 오산동 소재 주거형 오피스텔(400실, 지하4층~지상39층 4개동). 2022년 하반기 분양 진행, 청약통장 없이 전국 청약 가능 조건으로 평균 경쟁률 29.8:1을 기록했고 계약 시작 4일 만에 전 세대 완판됨. 2026년 3월 입주 예정으로 공고되었으며 현재 시점(2026-07) 기준 입주 시기를 지나 정상 준공된 것으로 보임."
   },
   "aiResult": null
 }
