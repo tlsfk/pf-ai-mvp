@@ -6,7 +6,7 @@ function loadCase(id) {
 }
 
 const index = JSON.parse(readFileSync("./data/pf-cases/index.json", "utf-8"));
-console.assert(index.cases.length === 5, "expected 5 dummy cases, got " + index.cases.length);
+console.assert(index.cases.length === 7, "expected 7 cases, got " + index.cases.length);
 
 const results = index.cases.map((id) => judgeCase(loadCase(id)));
 
@@ -19,8 +19,8 @@ for (const r of results) {
   console.log(r.id, "|", r.caseName, "| grade:", r.grade, "| outcome:", r.outcome, "| verdict:", r.verdict);
 }
 
-// 스키마상 5건 모두 zone이 ZONE_FAR에 있는 값이라 계산 실패가 없어야 함
-console.assert(results.every((r) => r.verdict !== "계산 실패"), "no dummy case should fail to compute");
+// 스키마상 7건 모두 zone이 ZONE_FAR에 있는 값이라 계산 실패가 없어야 함
+console.assert(results.every((r) => r.verdict !== "계산 실패"), "no case should fail to compute");
 
 // case-003(delayed)과 case-005(unknown)는 규칙상 항상 판정보류여야 함
 const c3 = results.find((r) => r.id === "case-003");
@@ -28,8 +28,8 @@ const c5 = results.find((r) => r.id === "case-005");
 console.assert(c3.verdict === "판정보류", "case-003 (delayed) should be 판정보류, got " + c3.verdict);
 console.assert(c5.verdict === "판정보류", "case-005 (unknown) should be 판정보류, got " + c5.verdict);
 
-// case-001/002(success)와 case-004(default)는 일치/불일치 중 하나로 명확히 갈려야 함(판정보류 아님)
-for (const id of ["case-001", "case-002", "case-004"]) {
+// success/default 사례는 일치/불일치 중 하나로 명확히 갈려야 함(판정보류 아님)
+for (const id of ["case-001", "case-002", "case-004", "case-006", "case-007"]) {
   const r = results.find((x) => x.id === id);
   console.assert(["일치", "불일치"].includes(r.verdict), `${id} should be 일치 or 불일치, got ${r.verdict}`);
 }
