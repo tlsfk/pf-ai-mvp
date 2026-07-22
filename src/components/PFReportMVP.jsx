@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Building2, MapPin, FileDown, Loader2, ShieldCheck } from "lucide-react";
 import { fetchTrades, geocodeToPnu, fetchLandCharacteristics } from "../lib/realDataFetcher";
 import * as XLSX from "xlsx";
@@ -308,6 +308,8 @@ export default function PFReportMVP() {
     .filter(({ record }) => !historySearch || (record.input?.address || "").includes(historySearch))
     .reverse(); // 최신 항목이 위로 오도록(원본 배열의 index는 삭제 시 그대로 사용)
 
+  const lastLookupAddressRef = useRef(""); // 주소 입력란에서 벗어날 때 같은 주소로 중복 조회하지 않기 위한 기억값
+
   const handleVworldLookup = async () => {
     setVworldStatus("loading");
     try {
@@ -322,6 +324,16 @@ export default function PFReportMVP() {
     } catch (e) {
       setVworldStatus({ ok: false, reason: e.message || "브이월드 조회 실패" });
     }
+  };
+
+  // 주소 입력란에서 포커스가 벗어날 때 자동 조회(별도 버튼 없음). 같은 주소로 이미 성공 조회했다면
+  // 다시 부르지 않되, 실패했던 주소는 재시도할 수 있게 그대로 다시 부른다.
+  const handleAddressBlur = () => {
+    const addr = form.address.trim();
+    if (!addr || vworldStatus === "loading") return;
+    if (addr === lastLookupAddressRef.current && vworldStatus?.ok) return;
+    lastLookupAddressRef.current = addr;
+    handleVworldLookup();
   };
 
   const steps = ["주소 검증 중", "실거래가 데이터 조회 중", "사업성 지표 산출 중", "리스크 스코어링 중", "심사 리포트 생성 중"];
@@ -542,7 +554,7 @@ export default function PFReportMVP() {
           <div className="input-panel" style={{ background: "#171B21", border: "1px solid #262C34", borderRadius: 6, padding: 24, alignSelf: "start" }}>
             <div className="field">
               <label><MapPin size={11} style={{ marginRight: 4 }} />주소</label>
-              <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} onBlur={handleAddressBlur} />
             </div>
             {form.address.trim() && (
               (() => {
@@ -557,14 +569,9 @@ export default function PFReportMVP() {
                 );
               })()
             )}
-            <button
-              type="button"
-              onClick={handleVworldLookup}
-              disabled={vworldStatus === "loading"}
-              style={{ background: "none", border: "1px solid #4C7A82", color: "#7CB0B8", fontSize: 11, cursor: "pointer", padding: "5px 10px", marginBottom: 8, borderRadius: 4 }}
-            >
-              {vworldStatus === "loading" ? "조회 중..." : "브이월드로 용도지역·공시지가 자동조회"}
-            </button>
+            {vworldStatus === "loading" && (
+              <div style={{ fontSize: 11, marginBottom: 8, color: "#9A9E9F" }}>브이월드로 용도지역·공시지가 조회 중…</div>
+            )}
             {vworldStatus && vworldStatus !== "loading" && (
               <div style={{ fontSize: 11, marginBottom: 8, lineHeight: 1.5, color: vworldStatus.ok ? "#8AB89A" : "#C98A6A" }}>
                 {vworldStatus.ok
