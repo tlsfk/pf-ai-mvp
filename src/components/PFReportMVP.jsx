@@ -8,7 +8,7 @@ import {
   DEVELOPER_OPTIONS, CONTRACTOR_OPTIONS, LOCATION_OPTIONS, PERMIT_OPTIONS, SUPPLY_OPTIONS,
   CREDIT_ENHANCEMENT_OPTIONS, topRiskItems, topStrengthItems,
 } from "../lib/scoring";
-import { saveAnalysisResult, buildAnalysisRecord } from "../lib/analysisStorage";
+import { saveAnalysisResult, buildAnalysisRecord, loadAnalysisHistory, deleteAnalysisResult } from "../lib/analysisStorage";
 
 // 사업유형별로 어떤 실거래가 데이터셋을 조회할지
 const PROJECT_TYPE_TRADES = {
@@ -390,7 +390,14 @@ export default function PFReportMVP() {
   const [showAdvanced, setShowAdvanced] = useState(false); // 고급 설정(시행사실적 등 직접입력) 펼침 여부
   const [vworldStatus, setVworldStatus] = useState(null); // null | "loading" | { ok: true, ... } | { ok: false, reason }
   const [formErrors, setFormErrors] = useState([]); // 실행 전 입력값 검증 오류 목록
+  const [showHistory, setShowHistory] = useState(false); // 분석 이력 패널 펼침 여부
+  const [historyList, setHistoryList] = useState(() => loadAnalysisHistory()); // localStorage 이력 캐시(삭제/저장 시마다 갱신)
+  const [historySearch, setHistorySearch] = useState(""); // 이력 목록 주소 검색어
   const market = result ? buildMarketAnalysis(result.scoreModel) : null; // "3. 시장성 분석" 섹션용 파생값(채점 재사용, 새 계산 없음)
+  const filteredHistory = historyList
+    .map((record, index) => ({ record, index }))
+    .filter(({ record }) => !historySearch || (record.input?.address || "").includes(historySearch))
+    .reverse(); // 최신 항목이 위로 오도록(원본 배열의 index는 삭제 시 그대로 사용)
 
   const handleVworldLookup = async () => {
     setVworldStatus("loading");
@@ -410,8 +417,11 @@ export default function PFReportMVP() {
 
   const steps = ["주소 검증 중", "실거래가 데이터 조회 중", "사업성 지표 산출 중", "리스크 스코어링 중", "심사 리포트 생성 중"];
 
-  const handleRun = async () => {
-    const errors = validateForm(form);
+  // formOverride: 이력에서 "재분석"할 때 setForm 직후 state가 아직 반영 안 된 상태라
+  // handleRun이 옛 form을 참조하게 되므로, 그 경우 명시적으로 새 폼을 전달받아 사용합니다.
+  const handleRun = async (formOverride) => {
+    const activeForm = formOverride || form;
+    const errors = validateForm(activeForm);
     if (errors.length > 0) {
       setFormErrors(errors);
       return;
@@ -424,23 +434,43 @@ export default function PFReportMVP() {
     // 애니메이션과 실제 데이터 조회를 병렬로 진행
     const stepTimer = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), 420);
     const [{ price: realPrice, comps: fetchedComps, reason }] = await Promise.all([
-      tryFetchRealPrice(form),
+      tryFetchRealPrice(activeForm),
       new Promise((r) => setTimeout(r, steps.length * 420)),
     ]);
     clearInterval(stepTimer);
     setStep(steps.length);
 
-    const analysisResult = runAnalysis(form, realPrice, (fetchedComps || []).length);
+    const analysisResult = runAnalysis(activeForm, realPrice, (fetchedComps || []).length);
     const note = realPrice != null ? { ok: true } : { ok: false, reason };
     setResult(analysisResult);
     setDataNote(note);
     setComps(fetchedComps || []);
     setExpanded(true);
     setStage("done");
-    saveAnalysisResult(buildAnalysisRecord({ form, result: analysisResult, dataNote: note, modelVersion: SCORING_MODEL_VERSION }));
+    saveAnalysisResult(buildAnalysisRecord({ form: activeForm, result: analysisResult, dataNote: note, modelVersion: SCORING_MODEL_VERSION }));
+    setHistoryList(loadAnalysisHistory());
   };
 
   const handleDownload = () => window.print();
+
+  // 이력에서 폼만 불러오고 재분석은 하지 않음(사용자가 값 확인/수정 후 직접 "사업성 분석 실행"을 누르게 함)
+  const handleHistoryLoad = (record) => {
+    setForm(record.input);
+    setShowHistory(false);
+  };
+
+  // 이력에서 폼을 불러오는 동시에 즉시 재분석(setForm 직후 state가 아직 안 바뀐 상태이므로
+  // handleRun에 새 폼을 명시적으로 전달)
+  const handleHistoryReanalyze = (record) => {
+    setForm(record.input);
+    setShowHistory(false);
+    handleRun(record.input);
+  };
+
+  const handleHistoryDelete = (index) => {
+    deleteAnalysisResult(index);
+    setHistoryList(loadAnalysisHistory());
+  };
 
   const handleExcelExport = () => {
     if (!result) return;
@@ -783,7 +813,7 @@ export default function PFReportMVP() {
                 {formErrors.map((e) => <div key={e}>⚠ {e}</div>)}
               </div>
             )}
-            <button className="runbtn" onClick={handleRun} disabled={stage === "running"}>
+            <button className="runbtn" onClick={() => handleRun()} disabled={stage === "running"}>
               {stage === "running" ? <><Loader2 size={16} className="spin" /> 분석 중…</> : "사업성 분석 실행"}
             </button>
 
@@ -792,6 +822,39 @@ export default function PFReportMVP() {
                 {steps.map((s, i) => (
                   <div key={s} style={{ padding: "4px 0", color: i < step ? "#4C7A82" : "#565C64" }}>
                     {i < step ? "✓" : "…"} {s}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              style={{ background: "none", border: "1px solid #4C7A82", color: "#7CB0B8", fontSize: 11, cursor: "pointer", padding: "6px 10px", marginTop: 12, borderRadius: 4, width: "100%" }}
+            >
+              분석 이력 {showHistory ? "접기" : `보기 (${historyList.length})`}
+            </button>
+            {showHistory && (
+              <div style={{ marginTop: 8, border: "1px solid #262C34", borderRadius: 4, padding: 10, maxHeight: 320, overflowY: "auto" }}>
+                <input
+                  placeholder="주소 검색"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  style={{ width: "100%", marginBottom: 8, background: "#1B2027", border: "1px solid #2C333B", color: "#E7E5DF", padding: "5px 8px", borderRadius: 4, fontSize: 12, boxSizing: "border-box" }}
+                />
+                {filteredHistory.length === 0 ? (
+                  <div style={{ fontSize: 12, color: "#6B7078" }}>저장된 분석 이력이 없습니다.</div>
+                ) : filteredHistory.map(({ record, index }) => (
+                  <div key={index} style={{ borderBottom: "1px solid #262C34", padding: "8px 0" }}>
+                    <div style={{ fontSize: 12, color: "#E7E5DF", fontWeight: 600 }}>{record.input?.address || "주소 없음"}</div>
+                    <div style={{ fontSize: 11, color: "#9A9E9F" }}>
+                      {new Date(record.createdAt).toLocaleString("ko-KR")} · 등급 {record.score?.grade} ({record.score?.total?.toFixed(1)}점)
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                      <button type="button" onClick={() => handleHistoryLoad(record)} style={{ fontSize: 11, background: "none", border: "1px solid #333B45", color: "#9A9E9F", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>불러오기</button>
+                      <button type="button" onClick={() => handleHistoryReanalyze(record)} style={{ fontSize: 11, background: "none", border: "1px solid #4C7A82", color: "#7CB0B8", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>재분석</button>
+                      <button type="button" onClick={() => handleHistoryDelete(index)} style={{ fontSize: 11, background: "none", border: "1px solid #9C3B34", color: "#D98C7A", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>삭제</button>
+                    </div>
                   </div>
                 ))}
               </div>

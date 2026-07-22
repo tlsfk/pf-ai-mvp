@@ -42,3 +42,11 @@ export function loadAnalysisHistory() {
     return [];
   }
 }
+
+/** index는 loadAnalysisHistory()가 반환한 배열에서의 위치(고유 id 없음 — 항상 최신 목록을 다시 불러온 뒤 그 위치 기준으로 삭제) */
+export function deleteAnalysisResult(index) {
+  if (typeof localStorage === "undefined") return;
+  const existing = loadAnalysisHistory();
+  existing.splice(index, 1);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+}
