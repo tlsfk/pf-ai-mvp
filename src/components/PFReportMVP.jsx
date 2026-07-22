@@ -261,6 +261,54 @@ function stressTestRow(result, saleRatePct) {
   return { saleRatePct, revenue, profit, margin, dscr };
 }
 
+/**
+ * 금리 상승 스트레스 테스트: 대출금액·분양수입·대출기간은 고정한 채 대출금리만
+ * +deltaPct%p 올렸을 때의 금융비용·사업수지·DSCR을 재계산합니다.
+ * ⚠️ 단순화 가정: 금리가 오르면 실제로는 총사업비(금융비용)가 늘어 대출금액도 함께
+ * 재산정되어야 하지만(순환참조), 여기서는 "동일한 대출금액을 그 금리로 그대로 썼다면"을
+ * 가정한 민감도 테스트입니다. 취급수수료율은 원래 조건과 동일하다고 가정합니다.
+ *
+ * 금융비용은 result.financeCost를 절대공식(대출금액×금리)으로 다시 계산하지 않고
+ * "금리 변동 배율"(rNew/rOld)을 곱해 구합니다 — "총사업비 직접입력" 모드에서는
+ * result.financeCost가 공식값이 아니라 totalCost−baseCost의 잔차값이라, 절대공식으로
+ * 다시 계산하면 delta=0(현재 금리)에서도 리포트 본문 숫자와 어긋나기 때문입니다.
+ */
+function interestRateStressRow(result, deltaPct) {
+  const newRate = result.interestRate + deltaPct;
+  const years = result.loanTermMonths / 12;
+  const baseCost = result.totalCost - result.financeCost; // 토지비+공사비+일반관리비(금융비용 제외)
+  const rOld = (result.interestRate / 100) * years + result.originationFee / 100;
+  const rNew = (newRate / 100) * years + result.originationFee / 100;
+  const financeCost = rOld > 0 ? result.financeCost * (rNew / rOld) : result.loanAmount * rNew;
+  const totalCost = baseCost + financeCost;
+  const profit = result.salesRevenue - totalCost;
+  const margin = (profit / totalCost) * 100;
+  const annualProfit = profit / years;
+  const annualInterest = result.loanAmount * (newRate / 100);
+  const dscr = annualInterest > 0 ? annualProfit / annualInterest : null;
+  return { newRate, deltaPct, totalCost, profit, margin, dscr };
+}
+
+/**
+ * 공사비 상승 스트레스 테스트: 대출금액·금리·분양수입은 고정한 채 공사비만
+ * +overrunPct% 올렸을 때의 총사업비·사업수지·DSCR을 재계산합니다.
+ * ⚠️ 단순화 가정: 실제로는 공사비가 늘면 필요 대출금액도 함께 늘어나야 하지만(순환참조),
+ * 여기서는 "동일한 대출금액으로 늘어난 공사비를 그대로 흡수했다면(초과분은 사업수지 악화로
+ * 귀결)"을 가정한 민감도 테스트입니다. 소프트비용이 공사비 비율로 연동된 경우(비율 모드)라도
+ * 여기서는 소프트비용은 재계산하지 않습니다(보수적으로 낮게 잡힐 수 있음에 유의).
+ */
+function costOverrunStressRow(result, overrunPct) {
+  const extraCost = result.constructionCost * (overrunPct / 100);
+  const totalCost = result.totalCost + extraCost;
+  const profit = result.salesRevenue - totalCost;
+  const margin = (profit / totalCost) * 100;
+  const years = result.loanTermMonths / 12;
+  const annualProfit = profit / years;
+  const annualInterest = result.loanAmount * (result.interestRate / 100);
+  const dscr = annualInterest > 0 ? annualProfit / annualInterest : null;
+  return { overrunPct, extraCost, totalCost, profit, margin, dscr };
+}
+
 const riskColor = (s) => (s <= 1 ? "#3E7C82" : s === 2 ? "#8A9A4A" : s === 3 ? "#C98A3E" : "#B4453B");
 
 /** 숫자 입력 필드가 비정상(비어있음/음수/문자 등)이면 그대로 두지 않고 사유를 모아 반환 —
@@ -421,6 +469,28 @@ export default function PFReportMVP() {
     ];
     const ws4 = XLSX.utils.aoa_to_sheet(stressRows);
     XLSX.utils.book_append_sheet(wb, ws4, "분양률스트레스테스트");
+
+    // 시트5: 금리 상승 스트레스 테스트
+    const rateStressRows = [
+      ["금리(%)", "총사업비(만원)", "사업수지(만원)", "수익률(%)", "DSCR(x)"],
+      ...[0, 1, 3, 5].map((delta) => {
+        const row = interestRateStressRow(result, delta);
+        return [row.newRate.toFixed(1), Math.round(row.totalCost), Math.round(row.profit), row.margin.toFixed(1), row.dscr != null ? row.dscr.toFixed(2) : "-"];
+      }),
+    ];
+    const ws5 = XLSX.utils.aoa_to_sheet(rateStressRows);
+    XLSX.utils.book_append_sheet(wb, ws5, "금리스트레스테스트");
+
+    // 시트6: 공사비 상승 스트레스 테스트
+    const costStressRows = [
+      ["공사비 증가율(%)", "총사업비(만원)", "사업수지(만원)", "수익률(%)", "DSCR(x)"],
+      ...[0, 5, 10, 15].map((overrun) => {
+        const row = costOverrunStressRow(result, overrun);
+        return [overrun, Math.round(row.totalCost), Math.round(row.profit), row.margin.toFixed(1), row.dscr != null ? row.dscr.toFixed(2) : "-"];
+      }),
+    ];
+    const ws6 = XLSX.utils.aoa_to_sheet(costStressRows);
+    XLSX.utils.book_append_sheet(wb, ws6, "공사비스트레스테스트");
 
     const safeAddr = (form.address || "report").replace(/[\\/:*?"<>|]/g, "_").slice(0, 30);
     XLSX.writeFile(wb, `PF사업성리포트_${safeAddr}.xlsx`);
@@ -908,6 +978,67 @@ export default function PFReportMVP() {
                           <tr key={rate} style={{ borderBottom: "1px solid #8F8770", background: rate === Math.round(result.expectedSaleRate) ? "#F1EEE5" : "transparent" }}>
                             <td style={{ padding: "6px 4px" }}>분양률 {rate}%{rate === Math.round(result.expectedSaleRate) ? " (가정치)" : ""}</td>
                             <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(row.revenue)}만원</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.profit > 0 ? "#2F6F5E" : "#9C3B34" }}>{fmt(row.profit)}만원</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{row.margin.toFixed(1)}%</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.dscr != null && row.dscr < 1 ? "#9C3B34" : "#332818" }}>{row.dscr != null ? row.dscr.toFixed(2) + "x" : "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  <h2 style={{ fontSize: 15, marginTop: 12, marginBottom: 4, color: "#1F1C14" }}>금리 상승 스트레스 테스트</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    ⚠️ 단순화 가정: 대출금액·분양수입은 고정하고 대출금리만 변동시킨 것입니다(대출금액 재산정은 반영 안 함).
+                  </div>
+                  <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse", marginBottom: 20 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
+                        <td style={{ padding: "6px 4px" }}>금리 시나리오</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>총사업비</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>사업수지</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>수익률</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>DSCR</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[0, 1, 3, 5].map((delta) => {
+                        const row = interestRateStressRow(result, delta);
+                        return (
+                          <tr key={delta} style={{ borderBottom: "1px solid #8F8770", background: delta === 0 ? "#F1EEE5" : "transparent" }}>
+                            <td style={{ padding: "6px 4px" }}>{delta === 0 ? `현재 금리 ${row.newRate.toFixed(1)}% (가정치)` : `+${delta}%p (${row.newRate.toFixed(1)}%)`}</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(row.totalCost)}만원</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.profit > 0 ? "#2F6F5E" : "#9C3B34" }}>{fmt(row.profit)}만원</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{row.margin.toFixed(1)}%</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.dscr != null && row.dscr < 1 ? "#9C3B34" : "#332818" }}>{row.dscr != null ? row.dscr.toFixed(2) + "x" : "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  <h2 style={{ fontSize: 15, marginTop: 12, marginBottom: 4, color: "#1F1C14" }}>공사비 상승 스트레스 테스트</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    ⚠️ 단순화 가정: 대출금액·금리·분양수입은 고정하고 공사비 초과분만큼 사업수지가 그대로 악화된다고 가정한 것입니다
+                    (대출금액 재산정, 소프트비용 연동 재계산은 반영 안 함).
+                  </div>
+                  <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse", marginBottom: 20 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
+                        <td style={{ padding: "6px 4px" }}>공사비 시나리오</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>총사업비</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>사업수지</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>수익률</td>
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>DSCR</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[0, 5, 10, 15].map((overrun) => {
+                        const row = costOverrunStressRow(result, overrun);
+                        return (
+                          <tr key={overrun} style={{ borderBottom: "1px solid #8F8770", background: overrun === 0 ? "#F1EEE5" : "transparent" }}>
+                            <td style={{ padding: "6px 4px" }}>{overrun === 0 ? "현재 공사비 (가정치)" : `공사비 +${overrun}%`}</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(row.totalCost)}만원</td>
                             <td style={{ padding: "6px 4px", textAlign: "right", color: row.profit > 0 ? "#2F6F5E" : "#9C3B34" }}>{fmt(row.profit)}만원</td>
                             <td style={{ padding: "6px 4px", textAlign: "right" }}>{row.margin.toFixed(1)}%</td>
                             <td style={{ padding: "6px 4px", textAlign: "right", color: row.dscr != null && row.dscr < 1 ? "#9C3B34" : "#332818" }}>{row.dscr != null ? row.dscr.toFixed(2) + "x" : "-"}</td>
