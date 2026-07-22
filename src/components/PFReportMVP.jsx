@@ -6,6 +6,7 @@ import { addressToLawdCd, recentDealYmd } from "../lib/lawdCodes";
 import {
   SCORING_MODEL_VERSION, TIER_COLOR, computeScoreModel, collateralTier,
   DEVELOPER_OPTIONS, CONTRACTOR_OPTIONS, LOCATION_OPTIONS, PERMIT_OPTIONS, SUPPLY_OPTIONS,
+  CREDIT_ENHANCEMENT_OPTIONS,
 } from "../lib/scoring";
 import { saveAnalysisResult, buildAnalysisRecord } from "../lib/analysisStorage";
 
@@ -106,6 +107,7 @@ const PLACEHOLDER_DEFAULTS = {
   contractorGrade: "미정(정보 없음)",
   locationTier: "일반 도시",
   supplyCompetition: "미확인(정보 없음)",
+  creditEnhancement: "신용보강 없음/미확인",
   expectedSaleRate: 80,
   interestRate: 9.0,
   originationFee: 1.0,
@@ -118,7 +120,7 @@ const DEFAULT_SOFT_COST_RATIO = 0.15; // 15%
 function runAnalysis(
   {
     address, area, zone, projectType, lender, developerTrack, contractorGrade, locationTier,
-    supplyCompetition, permitStage, expectedSaleRate, equityRatio, interestRate, originationFee, loanTermMonths,
+    supplyCompetition, creditEnhancement, permitStage, expectedSaleRate, equityRatio, interestRate, originationFee, loanTermMonths,
     totalCostOverride, constructionCostPerPyInput, softCostMode, softCostRatioInput,
     designFee, supervisionFee, salesCost, contingency,
   },
@@ -219,6 +221,7 @@ function runAnalysis(
     usingRealData, compsCount,
     locationTier, locationTierIsDefault: locationTier === PLACEHOLDER_DEFAULTS.locationTier,
     supplyCompetition, supplyCompetitionIsDefault: supplyCompetition === PLACEHOLDER_DEFAULTS.supplyCompetition,
+    creditEnhancement, creditEnhancementIsDefault: creditEnhancement === PLACEHOLDER_DEFAULTS.creditEnhancement,
     projectType, permitStage,
     developerTrack, developerTrackIsDefault: developerTrack === PLACEHOLDER_DEFAULTS.developerTrack,
     contractorGrade, contractorGradeIsDefault: contractorGrade === PLACEHOLDER_DEFAULTS.contractorGrade,
@@ -546,7 +549,7 @@ export default function PFReportMVP() {
               </div>
             </div>
             <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 6, lineHeight: 1.5 }}>
-              시행사 실적·시공사 등급·입지·분양률·대출금리·취급수수료는 기본적으로 임의값(보통·중견·일반 도시·80%·9.0%·1.0%)이 사용됩니다.
+              시행사 실적·시공사 등급·입지·공급경쟁·신용보강구조·분양률·대출금리·취급수수료는 기본적으로 임의값(보통·중견·일반 도시·미확인·미확인·80%·9.0%·1.0%)이 사용됩니다.
               실제 값을 아신다면 아래에서 직접 입력해주세요.
             </div>
             <button
@@ -584,6 +587,12 @@ export default function PFReportMVP() {
                   <label>공급 경쟁</label>
                   <select value={form.supplyCompetition} onChange={(e) => setForm({ ...form, supplyCompetition: e.target.value })}>
                     {SUPPLY_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>신용보강구조</label>
+                  <select value={form.creditEnhancement} onChange={(e) => setForm({ ...form, creditEnhancement: e.target.value })}>
+                    {CREDIT_ENHANCEMENT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                   </select>
                 </div>
                 <div className="field">

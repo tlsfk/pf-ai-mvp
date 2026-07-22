@@ -8,7 +8,7 @@
  * 자체 설계값입니다. 실제 금융사 기준에 맞게 이 파일만 교체하면 됩니다.
  */
 
-export const SCORING_MODEL_VERSION = "1.1.0";
+export const SCORING_MODEL_VERSION = "1.2.0";
 
 export const TIER_SCORE = { 우수: 100, 보통: 50, 위험: 0 };
 export const TIER_COLOR = { 우수: "#2F6F5E", 보통: "#8A7A3A", 위험: "#9C3B34" };
@@ -19,6 +19,7 @@ export const CONTRACTOR_OPTIONS = ["1군 건설사", "중견", "소형", "미정
 export const LOCATION_OPTIONS = ["서울 핵심·광역시 중심", "일반 도시", "수요 부족 지역"];
 export const PERMIT_OPTIONS = ["완료", "진행 중", "초기 단계"];
 export const SUPPLY_OPTIONS = ["공급 부족(우호적)", "적정", "공급 과다", "미확인(정보 없음)"];
+export const CREDIT_ENHANCEMENT_OPTIONS = ["책임준공확약 있음", "일부 보강(자금보충약정 등)", "신용보강 없음/미확인"];
 // index 3("미정"/"미확인")은 "보통"이 아니라 "위험"으로 처리합니다 — 정보가 없다는 것 자체가
 // 여신심사에서는 보수적으로 다뤄야 할 리스크이지, 평균치로 얼버무릴 근거가 아닙니다.
 const QUALITATIVE_TIER = { 0: "우수", 1: "보통", 2: "위험", 3: "위험" };
@@ -72,13 +73,6 @@ function allInCostTier(allInCost) {
 function compsTier(usingRealData, compsCount) {
   if (!usingRealData || compsCount <= 0) return "위험";
   if (compsCount >= 4) return "우수";
-  return "보통";
-}
-// 예상 분양성 — 입지 등급과 예상 분양률을 결합한 종합 판단(둘 다 사용자 입력/선택 기반이며
-// 별도 시장조사 데이터가 연동된 것은 아닙니다).
-function salabilityTier(locationTier, expectedSaleRate) {
-  if (locationTier === "수요 부족 지역" || expectedSaleRate < 60) return "위험";
-  if (locationTier === "서울 핵심·광역시 중심" && expectedSaleRate >= 70) return "우수";
   return "보통";
 }
 // 사업유형별 위험도 — 공인 통계가 아닌 업계 일반 통념(재건축은 조합원·대지 확보가 이미
@@ -165,10 +159,10 @@ function reasonComps(usingRealData, compsCount, tier) {
   if (tier === "우수") return `국토교통부 실거래가 ${compsCount}건을 확보해 비교 근거가 충분합니다.`;
   return `국토교통부 실거래가 ${compsCount}건 확보 — 비교 근거가 제한적입니다.`;
 }
-function reasonSalability(locationTier, expectedSaleRate, tier) {
-  if (tier === "우수") return `"${locationTier}" 입지 + 예상 분양률 ${expectedSaleRate}% 조합으로 시장성이 양호합니다.`;
-  if (tier === "위험") return `"${locationTier}" 입지 또는 낮은 예상 분양률(${expectedSaleRate}%)로 시장성 리스크가 있습니다.`;
-  return `"${locationTier}" 입지 + 예상 분양률 ${expectedSaleRate}% 조합으로 시장성은 보통 수준입니다.`;
+function reasonCreditEnhancement(creditEnhancement, tier) {
+  if (creditEnhancement === "신용보강 없음/미확인") return "신용보강구조 정보가 입력되지 않아 보수적으로 위험 처리했습니다. 시공사 책임준공확약 등 실제 구조를 확인해주세요.";
+  if (tier === "우수") return `"${creditEnhancement}" — 시공사 부도·미이행 시에도 대출 상환을 보완하는 장치가 확보되어 있습니다.`;
+  return `"${creditEnhancement}" — 완전한 책임준공확약 대비 신용보강 수준이 제한적입니다.`;
 }
 function reasonProjectType(projectType, tier) {
   if (tier === "우수") return `"${projectType}"은 조합원·대지 확보가 이미 이뤄진 경우가 많아 상대적으로 안정적인 유형입니다(업계 통념 기반).`;
@@ -249,7 +243,9 @@ const CATEGORIES = [
     key: "feasibility", name: "사업성", maxPoints: 30,
     items: [
       {
-        key: "expectedSaleRate", name: "예상 분양률", maxPoints: 10, type: "정량",
+        // v1.1.0 대비 10→12점. "예상 분양성"(입지+분양률 조합) 항목을 삭제하면서 확보한 점수를
+        // 가장 직접적인 정량 분양지표인 이 항목에 배정했습니다(근거는 아래 "삭제된 항목" 참고).
+        key: "expectedSaleRate", name: "예상 분양률", maxPoints: 12, type: "정량",
         build: (ctx) => {
           const tier = saleRateTier(ctx.expectedSaleRate);
           return {
@@ -260,7 +256,8 @@ const CATEGORIES = [
         },
       },
       {
-        key: "comps", name: "주변 실거래 비교", maxPoints: 6, type: "정량",
+        // v1.1.0 대비 6→9점 (아래 "삭제된 항목" 참고).
+        key: "comps", name: "주변 실거래 비교", maxPoints: 9, type: "정량",
         build: (ctx) => {
           const tier = compsTier(ctx.usingRealData, ctx.compsCount);
           return {
@@ -269,18 +266,12 @@ const CATEGORIES = [
           };
         },
       },
+      // 삭제된 항목: "예상 분양성"(6점, v1.1.0) — locationTier·expectedSaleRate를 그대로 재사용해
+      // "예상 분양률"·"주소기반 지역분석"과 이중계상되던 항목. 6점을 expectedSaleRate(+2)·
+      // comps(+3)·supplyCompetition(+1)에 재배분.
       {
-        key: "salability", name: "예상 분양성", maxPoints: 6, type: "정성",
-        build: (ctx) => {
-          const tier = salabilityTier(ctx.locationTier, ctx.expectedSaleRate);
-          return {
-            tier, detail: `${ctx.locationTier} · 분양률 ${ctx.expectedSaleRate}%`,
-            source: "입지+분양률 종합(자체 판정)", reason: reasonSalability(ctx.locationTier, ctx.expectedSaleRate, tier),
-          };
-        },
-      },
-      {
-        key: "supplyCompetition", name: "공급 경쟁", maxPoints: 4, type: "정성",
+        // v1.1.0 대비 4→5점.
+        key: "supplyCompetition", name: "공급 경쟁", maxPoints: 5, type: "정성",
         build: (ctx) => {
           const tier = optionTier(SUPPLY_OPTIONS, ctx.supplyCompetition);
           return {
@@ -303,14 +294,16 @@ const CATEGORIES = [
     key: "stability", name: "사업 안정성", maxPoints: 20,
     items: [
       {
-        key: "permitStage", name: "인허가 단계", maxPoints: 6, type: "정성",
+        // v1.1.0 대비 6→5점 (신용보강구조 신설로 재배분, 아래 참고).
+        key: "permitStage", name: "인허가 단계", maxPoints: 5, type: "정성",
         build: (ctx) => {
           const tier = optionTier(PERMIT_OPTIONS, ctx.permitStage);
           return { tier, detail: ctx.permitStage, source: "사용자 입력값", reason: reasonPermit(tier) };
         },
       },
       {
-        key: "developerTrack", name: "시행사 경험", maxPoints: 6, type: "정성",
+        // v1.1.0 대비 6→5점.
+        key: "developerTrack", name: "시행사 경험", maxPoints: 5, type: "정성",
         build: (ctx) => {
           const tier = optionTier(DEVELOPER_OPTIONS, ctx.developerTrack);
           return {
@@ -321,13 +314,28 @@ const CATEGORIES = [
         },
       },
       {
-        key: "contractorGrade", name: "시공사 안정성", maxPoints: 5, type: "정성",
+        // v1.1.0 대비 5→3점. 신용보강구조가 시공사 부도 리스크의 상당 부분을 별도로 채점하므로 축소.
+        key: "contractorGrade", name: "시공사 안정성", maxPoints: 3, type: "정성",
         build: (ctx) => {
           const tier = optionTier(CONTRACTOR_OPTIONS, ctx.contractorGrade);
           return {
             tier, detail: ctx.contractorGrade,
             source: ctx.contractorGradeIsDefault ? "기본값(미입력)" : "사용자 입력값",
             reason: reasonContractor(ctx.contractorGrade, tier),
+          };
+        },
+      },
+      {
+        // 신규(v1.2.0). 실무 PF 심사에서 담보가치·재무지표 못지않게 승인 여부를 좌우하는
+        // 신용보강구조(시공사 책임준공확약/조건부채무인수/자금보충약정 등)를 독립 채점.
+        // 시공사 "등급"과는 별개 축 — 등급이 좋아도 신용보강이 없으면 이 항목은 위험으로 잡힙니다.
+        key: "creditEnhancement", name: "신용보강구조", maxPoints: 4, type: "정성",
+        build: (ctx) => {
+          const tier = optionTier(CREDIT_ENHANCEMENT_OPTIONS, ctx.creditEnhancement);
+          return {
+            tier, detail: ctx.creditEnhancement,
+            source: ctx.creditEnhancementIsDefault ? "기본값(미입력)" : "사용자 입력값",
+            reason: reasonCreditEnhancement(ctx.creditEnhancement, tier),
           };
         },
       },
@@ -344,7 +352,11 @@ const CATEGORIES = [
     key: "location", name: "입지 경쟁력", maxPoints: 10,
     items: [
       {
-        key: "locationBase", name: "주소기반 지역분석", maxPoints: 4, type: "정성",
+        // v1.1.0 대비 4→10점(단일 항목화, 아래 "삭제된 항목" 참고).
+        // ⚠️ 입지 데이터소스가 locationTier(3지선다 선택값) 하나뿐이라, 이 카테고리 10점 전부가
+        // 그 선택 하나로 결정됩니다 — 다만 카테고리 자체 비중이 전체의 10%로 작게 설계되어 있어
+        // (사용자 지시) 여기서 실제 등급을 좌우하는 영향력은 제한적입니다.
+        key: "locationBase", name: "입지 등급", maxPoints: 10, type: "정성",
         build: (ctx) => {
           const tier = optionTier(LOCATION_OPTIONS, ctx.locationTier);
           return {
@@ -354,39 +366,11 @@ const CATEGORIES = [
           };
         },
       },
-      {
-        key: "nearbyTrades", name: "주변 거래", maxPoints: 3, type: "정량",
-        build: (ctx) => {
-          const tier = compsTier(ctx.usingRealData, ctx.compsCount);
-          return {
-            tier, detail: ctx.usingRealData ? `비교사례 ${ctx.compsCount}건` : "미반영",
-            source: "국토교통부 실거래가 API(사업성 항목과 동일 데이터)",
-            reason: reasonComps(ctx.usingRealData, ctx.compsCount, tier),
-          };
-        },
-      },
-      {
-        key: "transitAccess", name: "교통 접근성", maxPoints: 2, type: "정성",
-        build: (ctx) => {
-          const tier = optionTier(LOCATION_OPTIONS, ctx.locationTier);
-          return {
-            tier, detail: ctx.locationTier,
-            source: "별도 데이터소스 없음 — 입지 등급과 동일 적용",
-            reason: `${ctx.locationTier} 기준으로 산정했습니다(교통 전용 데이터 미연동).`,
-          };
-        },
-      },
-      {
-        key: "livingInfra", name: "생활 인프라", maxPoints: 1, type: "정성",
-        build: (ctx) => {
-          const tier = optionTier(LOCATION_OPTIONS, ctx.locationTier);
-          return {
-            tier, detail: ctx.locationTier,
-            source: "별도 데이터소스 없음 — 입지 등급과 동일 적용",
-            reason: `${ctx.locationTier} 기준으로 산정했습니다(생활 인프라 전용 데이터 미연동).`,
-          };
-        },
-      },
+      // 삭제된 항목(v1.1.0 대비):
+      // - "주변 거래"(3점) — 사업성 카테고리의 "주변 실거래 비교"와 완전히 동일한 comps 데이터를
+      //   재사용해 두 카테고리에 이중계상되고 있었습니다.
+      // - "교통 접근성"(2점)·"생활 인프라"(1점) — 별도 데이터소스 없이 locationTier를 그대로
+      //   재사용해 사실상 정보량 없이 항목 개수만 늘리고 있었습니다. "입지 등급" 하나로 통합.
     ],
   },
 ];
@@ -397,7 +381,8 @@ const CATEGORIES = [
  * (ltv, dscr, equityRatio, allInCost, expectedSaleRate, expectedSaleRateIsDefault, usingRealData,
  *  compsCount, locationTier, locationTierIsDefault, supplyCompetition, supplyCompetitionIsDefault,
  *  projectType, permitStage, developerTrack, developerTrackIsDefault, contractorGrade,
- *  contractorGradeIsDefault, financialModelInvalid, profit).
+ *  contractorGradeIsDefault, creditEnhancement, creditEnhancementIsDefault,
+ *  financialModelInvalid, profit).
  */
 export function computeScoreModel(ctx) {
   const categories = CATEGORIES.map((cat) => {
@@ -428,8 +413,10 @@ export function computeScoreModel(ctx) {
   if (!isDefault) {
     const financialItems = categories.find((c) => c.key === "financial").items;
     const financialRiskCount = financialItems.filter((i) => i.tier === "위험").length;
+    // progressRisk(파생값)와 creditEnhancement(신용보강구조, 실행능력과 별개 축)는
+    // "실행 3항목"이 아니므로 이 게이트 판단에서 제외합니다.
     const stabilityCoreItems = categories.find((c) => c.key === "stability").items
-      .filter((i) => i.key !== "progressRisk");
+      .filter((i) => i.key === "permitStage" || i.key === "developerTrack" || i.key === "contractorGrade");
     const allStabilityCoreRisky = stabilityCoreItems.every((i) => i.tier === "위험");
 
     if (financialRiskCount >= 2) {

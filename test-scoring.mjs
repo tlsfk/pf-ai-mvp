@@ -6,6 +6,7 @@ const ctx = {
   usingRealData: true, compsCount: 5,
   locationTier: "서울 핵심·광역시 중심", locationTierIsDefault: false,
   supplyCompetition: "적정", supplyCompetitionIsDefault: false,
+  creditEnhancement: "책임준공확약 있음", creditEnhancementIsDefault: false,
   projectType: "재건축", permitStage: "진행 중",
   developerTrack: "대형·실적 풍부", developerTrackIsDefault: false,
   contractorGrade: "1군 건설사", contractorGradeIsDefault: false,
@@ -34,6 +35,14 @@ const defaultModel = computeScoreModel({
 const dev = defaultModel.categories.flatMap(c => c.items).find(i => i.key === "developerTrack");
 console.assert(dev.tier === "위험", "expected 위험 tier for missing developerTrack, got " + dev.tier);
 console.log("missing-info conservative path OK:", dev.tier);
+
+// 신용보강구조 미입력(기본값)은 다른 항목과 마찬가지로 보수적으로 위험 처리되어야 하지만,
+// "실행 3항목"(인허가·시행사·시공사)이 전부 정상이면 게이트는 걸리지 않아야 함(별개 축이므로).
+const noEnhancementModel = computeScoreModel({ ...ctx, creditEnhancement: "신용보강 없음/미확인", creditEnhancementIsDefault: true });
+const ce = noEnhancementModel.categories.flatMap(c => c.items).find(i => i.key === "creditEnhancement");
+console.assert(ce.tier === "위험", "expected 위험 tier for missing creditEnhancement, got " + ce.tier);
+console.assert(noEnhancementModel.gateApplied === null, "creditEnhancement alone should not trigger the stability gate, got " + noEnhancementModel.gateApplied);
+console.log("creditEnhancement default is conservative but isolated from execution gate: OK");
 
 // 하드 게이트: 재무 4항목 중 2개 이상 위험이면, 다른 카테고리가 만점이어도 BB 이하로 캡되어야 함
 // (가중합산만으로는 LTV88%/자기자본8%/All-in18% 같은 붕괴한 재무구조를 A- 등급까지 가릴 수 있었던 결함 회귀 방지)
