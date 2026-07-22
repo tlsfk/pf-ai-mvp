@@ -698,32 +698,20 @@ export default function PFReportMVP() {
             </div>
             <div className="field-grid2">
               <div className="field">
-                <label>대지면적 (㎡)</label>
-                <input type="number" min="1" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>용도지역</label>
-                <select value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })}>
-                  {Object.keys(ZONE_FAR).map((z) => <option key={z}>{z}</option>)}
-                </select>
-              </div>
-              <div className="field">
                 <label>사업 유형</label>
                 <select value={form.projectType} onChange={(e) => setForm({ ...form, projectType: e.target.value })}>
                   <option>재건축</option><option>재개발</option><option>신축개발</option>
                 </select>
               </div>
               <div className="field">
-                <label>심사 대상 기관</label>
-                <select value={form.lender} onChange={(e) => setForm({ ...form, lender: e.target.value })}>
-                  <option>부동산신탁사</option><option>저축은행</option><option>캐피탈사</option><option>자산운용사</option>
-                </select>
+                <label>대지면적 (㎡)</label>
+                <input type="number" min="1" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} />
               </div>
             </div>
             {form.area && ZONE_FAR[form.zone] && (
               <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 10 }}>
                 연면적(자동계산): 약 {Math.round((Number(form.area) / 3.3058) * (ZONE_FAR[form.zone] / 100)).toLocaleString("ko-KR")}평
-                ({Math.round(Number(form.area) * (ZONE_FAR[form.zone] / 100)).toLocaleString("ko-KR")}㎡) — 법정 용적률 {ZONE_FAR[form.zone]}% 기준
+                ({Math.round(Number(form.area) * (ZONE_FAR[form.zone] / 100)).toLocaleString("ko-KR")}㎡) — 용도지역·심사대상기관은 고급 설정, 법정 용적률 {ZONE_FAR[form.zone]}% 기준
               </div>
             )}
 
@@ -740,8 +728,17 @@ export default function PFReportMVP() {
                 <input type="number" min="0" max="100" value={form.equityRatio} onChange={(e) => setForm({ ...form, equityRatio: e.target.value })} />
               </div>
             </div>
+            {form.totalCostOverride && Number(form.totalCostOverride) > 0 ? (
+              <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 6 }}>
+                PF 대출금(자동계산): 약 {fmt(Number(form.totalCostOverride) * (1 - Number(form.equityRatio) / 100))}만원 (총사업비 − 자기자본)
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 6 }}>
+                PF 대출금: 총사업비를 자동계산하는 경우, 분석 실행 후 리포트에 정확한 금액이 표시됩니다.
+              </div>
+            )}
             <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 6, lineHeight: 1.5 }}>
-              인허가 단계·대출기간·시행사 실적·시공사 등급·입지·공급경쟁·신용보강구조·분양률·대출금리·취급수수료·공사비는
+              용도지역·심사대상기관·인허가 단계·대출기간·시행사 실적·시공사 등급·입지·공급경쟁·신용보강구조·분양률·대출금리·취급수수료·공사비는
               기본적으로 임의값이 사용됩니다. 실제 값을 아신다면 아래 고급 설정에서 직접 입력해주세요.
             </div>
             <button
@@ -754,14 +751,14 @@ export default function PFReportMVP() {
             {showAdvanced && (
               <div className="field-grid" style={{ marginBottom: 10 }}>
                 <div className="field">
+                  <label>예상 분양률 (%)</label>
+                  <input type="number" min="0" max="100" value={form.expectedSaleRate} onChange={(e) => setForm({ ...form, expectedSaleRate: e.target.value })} />
+                </div>
+                <div className="field">
                   <label>인허가 단계</label>
                   <select value={form.permitStage} onChange={(e) => setForm({ ...form, permitStage: e.target.value })}>
                     {PERMIT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                   </select>
-                </div>
-                <div className="field">
-                  <label>대출기간 (개월)</label>
-                  <input type="number" min="1" max="360" value={form.loanTermMonths} onChange={(e) => setForm({ ...form, loanTermMonths: e.target.value })} />
                 </div>
                 <div className="field">
                   <label>시행사 실적</label>
@@ -776,14 +773,10 @@ export default function PFReportMVP() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>입지</label>
-                  <select value={form.locationTier} onChange={(e) => setForm({ ...form, locationTier: e.target.value })}>
-                    {LOCATION_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                  <label>신용보강구조</label>
+                  <select value={form.creditEnhancement} onChange={(e) => setForm({ ...form, creditEnhancement: e.target.value })}>
+                    {CREDIT_ENHANCEMENT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                   </select>
-                </div>
-                <div className="field">
-                  <label>예상 분양률 (%)</label>
-                  <input type="number" min="0" max="100" value={form.expectedSaleRate} onChange={(e) => setForm({ ...form, expectedSaleRate: e.target.value })} />
                 </div>
                 <div className="field">
                   <label>공급 경쟁</label>
@@ -792,10 +785,26 @@ export default function PFReportMVP() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>신용보강구조</label>
-                  <select value={form.creditEnhancement} onChange={(e) => setForm({ ...form, creditEnhancement: e.target.value })}>
-                    {CREDIT_ENHANCEMENT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                  <label>용도지역</label>
+                  <select value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })}>
+                    {Object.keys(ZONE_FAR).map((z) => <option key={z}>{z}</option>)}
                   </select>
+                </div>
+                <div className="field">
+                  <label>심사 대상 기관</label>
+                  <select value={form.lender} onChange={(e) => setForm({ ...form, lender: e.target.value })}>
+                    <option>부동산신탁사</option><option>저축은행</option><option>캐피탈사</option><option>자산운용사</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>입지</label>
+                  <select value={form.locationTier} onChange={(e) => setForm({ ...form, locationTier: e.target.value })}>
+                    {LOCATION_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>대출기간 (개월)</label>
+                  <input type="number" min="1" max="360" value={form.loanTermMonths} onChange={(e) => setForm({ ...form, loanTermMonths: e.target.value })} />
                 </div>
                 <div className="field">
                   <label>대출금리 (%)</label>
@@ -811,6 +820,9 @@ export default function PFReportMVP() {
               <>
                 <div style={{ fontSize: 11, color: "#9A9E9F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4, marginTop: 8 }}>
                   비용 직접입력 (선택 — 입력 시 자동계산보다 우선 적용)
+                </div>
+                <div style={{ fontSize: 10.5, color: "#7A7666", marginBottom: 6, lineHeight: 1.5 }}>
+                  ※ 분양가는 별도 직접입력 항목이 없습니다 — 실거래가 자동조회에 성공하면 그 값을, 실패하면 토지 평당가 기반 가정치를 그대로 분양가로 사용합니다(분석 실행 후 리포트에 표시).
                 </div>
                 <div className="field-grid" style={{ marginBottom: 8 }}>
                   <div className="field">
