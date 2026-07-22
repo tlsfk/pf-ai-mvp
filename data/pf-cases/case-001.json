@@ -1,32 +1,32 @@
 {
   "id": "case-001",
-  "caseName": "더미 예시: 서울 핵심지 재건축, 완판 성공 시나리오",
-  "status": "dummy",
-  "source": "실제 사례 아님 — 우량 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "caseName": "래미안 원베일리(신반포3차·경남 재건축) — 역대 최고 청약경쟁률·완판 사례",
+  "status": "verified",
+  "source": "서울시 정비사업 정보몽땅(cleanup.seoul.go.kr, 신반포3차·경남 주택재건축정비사업조합 사업개요, 2026-07-22 확인) — 대지면적 119,230.8㎡, 기존 신반포3차 1,140세대+경남 1,056세대. 이데일리·서울경제 등 보도(2021-06 일반분양 224세대, 1순위 평균경쟁률 161:1·최고가점 만점·평균가점 72.9점 역대 최고, 평당 분양가 5,653만원, 2023-08-31 입주 시작). 시공사(삼성물산, '래미안' 브랜드)와 반포동 입지 특성(서울 핵심권)은 공개적으로 잘 알려진 사실. 정확한 용도지역·조합 PF 대출조건(금리·자기자본비율 등)은 비공개라 앱의 기본 미정값을 사용했으며 실제 조건이 아님에 유의.",
   "input": {
-    "address": "서울특별시 강남구 대치동 000",
-    "area": "1500",
-    "zone": "제3종일반주거지역",
+    "address": "서울특별시 서초구 반포동 1",
+    "area": "119230.8",
+    "zone": "준주거지역",
     "projectType": "재건축",
     "lender": "부동산신탁사",
-    "developerTrack": "대형·실적 풍부",
+    "developerTrack": "미정(정보 없음)",
     "contractorGrade": "1군 건설사",
     "locationTier": "서울 핵심·광역시 중심",
     "supplyCompetition": "공급 부족(우호적)",
-    "creditEnhancement": "책임준공확약 있음",
+    "creditEnhancement": "신용보강 없음/미확인",
     "permitStage": "완료",
-    "expectedSaleRate": "95",
-    "equityRatio": "25",
-    "interestRate": "7.5",
+    "expectedSaleRate": "100",
+    "equityRatio": "20",
+    "interestRate": "9.0",
     "originationFee": "1.0",
-    "loanTermMonths": "24"
+    "loanTermMonths": "27"
   },
   "actual": {
     "totalCost": null,
-    "salesRate": 98,
+    "salesRate": 100,
     "outcome": "success",
     "actualGrade": null,
-    "notes": "더미 데이터 — 착공 후 청약 경쟁률 우수, 조기 완판을 가정한 예시 시나리오."
+    "notes": "신반포3차(1,140세대)·경남아파트(1,056세대)를 통합 재건축, 지하4층~지상35층 22개동 2,990세대로 신축. 2021년 6월 일반분양 224세대 진행, 1순위 평균 경쟁률 161:1(3만6,116명 청약), 가점 만점자 등장·평균 가점 72.9점으로 역대 최고 기록. 평당 분양가 5,653만원. 2023년 8월 31일 입주 시작, 정상 준공·완판됨."
   },
   "aiResult": null
 }
