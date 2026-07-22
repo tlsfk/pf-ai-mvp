@@ -628,12 +628,6 @@ export default function PFReportMVP() {
         .paper h1, .paper h2 { font-family:'Source Serif 4', serif; }
         .metric-card { background:#F2F2F2; border:1px solid #CCCCCC; border-radius:2px; padding:10px 14px; }
         .metric-num { font-family:'IBM Plex Mono', monospace; font-size:17px; font-weight:500; color:#000000; }
-        .stamp {
-          position:absolute; top:40px; right:48px; min-width:74px; height:52px; padding:0 14px;
-          border-radius:26px; border:3px solid; display:flex; align-items:center; justify-content:center;
-          font-family:'Source Serif 4', serif; font-size:20px; font-weight:700; letter-spacing:0.02em;
-          transform:rotate(-6deg); opacity:0.9; white-space:nowrap;
-        }
         .cover-page { page-break-after: always; }
         @media print {
           body * { visibility:hidden; }
@@ -999,7 +993,7 @@ export default function PFReportMVP() {
                     <div style={{ fontSize: 13, color: "#555555", marginBottom: 32 }}>1차 타당성 검토용 (Quick Screening)</div>
                     <div style={{
                       display: "inline-flex", alignItems: "center", justifyContent: "center", width: 90, height: 68,
-                      border: `3px solid ${result.gradeColor}`, borderRadius: 24, color: result.gradeColor,
+                      border: `3px solid ${result.gradeColor}`, borderRadius: 24, color: "#000000",
                       fontFamily: "'Source Serif 4', serif", fontSize: 22, fontWeight: 700, marginBottom: 24,
                     }}>
                       {result.grade}
@@ -1009,7 +1003,7 @@ export default function PFReportMVP() {
                         <tr><td style={{ padding: "4px 12px", color: "#555555", textAlign: "right" }}>사업지</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#000000", fontWeight: 600 }}>{form.address}</td></tr>
                         <tr><td style={{ padding: "4px 12px", color: "#555555", textAlign: "right" }}>사업유형</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#000000" }}>{form.zone} · {form.projectType}</td></tr>
                         <tr><td style={{ padding: "4px 12px", color: "#555555", textAlign: "right" }}>심사 대상 기관</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#000000" }}>{form.lender}</td></tr>
-                        <tr><td style={{ padding: "4px 12px", color: "#555555", textAlign: "right" }}>종합 등급</td><td style={{ padding: "4px 12px", textAlign: "left", color: result.gradeColor, fontWeight: 600 }}>{result.grade} ({result.gradeNote})</td></tr>
+                        <tr><td style={{ padding: "4px 12px", color: "#555555", textAlign: "right" }}>종합 등급</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#000000", fontWeight: 600 }}>{result.grade} ({result.gradeNote})</td></tr>
                         <tr><td style={{ padding: "4px 12px", color: "#555555", textAlign: "right" }}>종합점수</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#000000" }}>{result.scoreModel.totalScore.toFixed(1)}/100</td></tr>
                         <tr><td style={{ padding: "4px 12px", color: "#555555", textAlign: "right" }}>발행일</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#000000" }}>{new Date().toLocaleDateString("ko-KR")}</td></tr>
                       </tbody>
@@ -1019,9 +1013,6 @@ export default function PFReportMVP() {
                     </div>
                   </div>
 
-                  <div className="stamp" style={{ borderColor: result.gradeColor, color: result.gradeColor }}>
-                    {result.grade}
-                  </div>
 
                   <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "#333333" }}>
                     부동산 PF 사업성 심사 리포트 · Prototype Output
@@ -1033,7 +1024,7 @@ export default function PFReportMVP() {
 
                   {/* ① 종합등급: 위 뱃지(cover-page)에서 이미 표시됨 */}
                   <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 13, background: "#EFEFEF", display: "inline-block", padding: "4px 10px", borderRadius: 2, color: result.gradeColor, fontWeight: 600 }}>
+                    <div style={{ fontSize: 13, background: "#EFEFEF", display: "inline-block", padding: "4px 10px", borderRadius: 2, border: `1px solid ${result.gradeColor}`, color: "#000000", fontWeight: 600 }}>
                       종합 등급 {result.grade} — {result.gradeNote}
                     </div>
                     <div style={{
@@ -1069,7 +1060,7 @@ export default function PFReportMVP() {
                   {/* ② 심사의견 */}
                   <div style={{ marginTop: 14, padding: "12px 14px", background: "#F2F2F2", borderRadius: 2, border: `1.5px solid ${result.gradeColor}` }}>
                     <div style={{ fontSize: 11, color: "#000000", textTransform: "uppercase", letterSpacing: "0.05em" }}>최종 심사의견</div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: result.gradeColor, marginTop: 2 }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: "#000000", marginTop: 2 }}>
                       {DECISION_LABEL[result.gradeBand]}
                     </div>
                     <div style={{ fontSize: 12.5, color: "#000000", marginTop: 6, lineHeight: 1.6 }}>
@@ -1308,7 +1299,7 @@ export default function PFReportMVP() {
                       <tr style={{ fontWeight: 700 }}>
                         <td colSpan={3} style={{ padding: "6px 4px" }}>종합점수 (4개 카테고리 가중합산)</td>
                         <td style={{ padding: "6px 4px", textAlign: "center" }}>{result.scoreModel.totalScore.toFixed(1)}/100</td>
-                        <td style={{ padding: "6px 4px", textAlign: "center", color: result.gradeColor }}>{result.grade}</td>
+                        <td style={{ padding: "6px 4px", textAlign: "center", color: "#000000" }}>{result.grade}</td>
                         <td></td>
                       </tr>
                     </tbody>
@@ -1422,7 +1413,7 @@ export default function PFReportMVP() {
                   </div>
                   <div style={{ padding: "10px 14px", background: "#F2F2F2", borderRadius: 2, border: `1px solid ${result.gradeColor}` }}>
                     <div style={{ fontSize: 10.5, color: "#000000", textTransform: "uppercase", letterSpacing: "0.05em" }}>최종 심사의견</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: result.gradeColor, marginTop: 2 }}>{DECISION_LABEL[result.gradeBand]}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#000000", marginTop: 2 }}>{DECISION_LABEL[result.gradeBand]}</div>
                   </div>
                   </>
                   )}
