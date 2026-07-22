@@ -10,6 +10,10 @@ import {
 } from "../lib/scoring";
 import { saveAnalysisResult, buildAnalysisRecord, loadAnalysisHistory, deleteAnalysisResult } from "../lib/analysisStorage";
 import { runAnalysis, ZONE_FAR, PLACEHOLDER_DEFAULTS } from "../lib/analysis";
+import { loadCaseComparisons } from "../lib/pfCases";
+
+const OUTCOME_LABEL = { success: "성공", delayed: "지연", default: "부도", unknown: "미확정" };
+const VERDICT_COLOR = { 일치: "#8AB89A", 불일치: "#D98C7A", 판정보류: "#9A9E9F", "계산 실패": "#D98C7A" };
 
 // 사업유형별로 어떤 실거래가 데이터셋을 조회할지
 // LAWD_CD(5자리) -> 사람이 읽을 지역명. 주소 입력 즉시(네트워크 호출 없이) 어느 시군구로
@@ -294,6 +298,8 @@ export default function PFReportMVP() {
   const [vworldStatus, setVworldStatus] = useState(null); // null | "loading" | { ok: true, ... } | { ok: false, reason }
   const [formErrors, setFormErrors] = useState([]); // 실행 전 입력값 검증 오류 목록
   const [showHistory, setShowHistory] = useState(false); // 분석 이력 패널 펼침 여부
+  const [showCaseValidation, setShowCaseValidation] = useState(false); // PF 사례 검증 패널 펼침 여부
+  const [caseComparisons, setCaseComparisons] = useState(null); // 첫 오픈 시 1회만 계산해 캐시
   const [historyList, setHistoryList] = useState(() => loadAnalysisHistory()); // localStorage 이력 캐시(삭제/저장 시마다 갱신)
   const [historySearch, setHistorySearch] = useState(""); // 이력 목록 주소 검색어
   const market = result ? buildMarketAnalysis(result.scoreModel) : null; // "3. 시장성 분석" 섹션용 파생값(채점 재사용, 새 계산 없음)
@@ -779,6 +785,35 @@ export default function PFReportMVP() {
                       <button type="button" onClick={() => handleHistoryReanalyze(record)} style={{ fontSize: 11, background: "none", border: "1px solid #4C7A82", color: "#7CB0B8", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>재분석</button>
                       <button type="button" onClick={() => handleHistoryDelete(index)} style={{ fontSize: 11, background: "none", border: "1px solid #9C3B34", color: "#D98C7A", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>삭제</button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowCaseValidation((v) => !v);
+                if (!caseComparisons) setCaseComparisons(loadCaseComparisons());
+              }}
+              style={{ background: "none", border: "1px solid #4C7A82", color: "#7CB0B8", fontSize: 11, cursor: "pointer", padding: "6px 10px", marginTop: 8, borderRadius: 4, width: "100%" }}
+            >
+              PF 사례 검증 {showCaseValidation ? "접기" : "보기"}
+            </button>
+            {showCaseValidation && (
+              <div style={{ marginTop: 8, border: "1px solid #262C34", borderRadius: 4, padding: 10, maxHeight: 360, overflowY: "auto" }}>
+                <div style={{ fontSize: 10.5, color: "#6B7078", marginBottom: 8, lineHeight: 1.5 }}>
+                  AI가 각 사례의 입력값으로 산출한 등급과 실제 사업결과를 비교합니다. 전부 더미 데이터이며, 실제
+                  사례로 교체되기 전까지는 참고용입니다.
+                </div>
+                {(caseComparisons || []).map((c) => (
+                  <div key={c.id} style={{ borderBottom: "1px solid #262C34", padding: "8px 0" }}>
+                    <div style={{ fontSize: 12, color: "#E7E5DF", fontWeight: 600 }}>{c.caseName}</div>
+                    <div style={{ fontSize: 11, color: "#9A9E9F", marginTop: 2 }}>
+                      AI등급 {c.grade ?? "계산 실패"} · 실제결과 {OUTCOME_LABEL[c.outcome] || c.outcome} ·{" "}
+                      <span style={{ color: VERDICT_COLOR[c.verdict] || "#9A9E9F", fontWeight: 600 }}>{c.verdict}</span>
+                    </div>
+                    {c.error && <div style={{ fontSize: 10.5, color: "#D98C7A", marginTop: 2 }}>오류: {c.error}</div>}
                   </div>
                 ))}
               </div>
