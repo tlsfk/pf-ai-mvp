@@ -622,11 +622,11 @@ export default function PFReportMVP() {
         }
         .runbtn:disabled { opacity:0.55; cursor:default; }
         .paper {
-          background:#FAF8F3; color:#000000; border-radius:2px; padding:32px 36px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+          background:#FAF8F3; color:#000000; border-radius:0; padding:32px 36px;
+          border: 1px solid #999999; box-shadow: none;
         }
         .paper h1, .paper h2 { font-family:'Source Serif 4', serif; }
-        .metric-card { background:#F2F2F2; border:1px solid #CCCCCC; border-radius:2px; padding:10px 14px; }
+        .metric-card { background:#F2F2F2; border:1px solid #CCCCCC; border-radius:0; padding:10px 14px; }
         .metric-num { font-family:'IBM Plex Mono', monospace; font-size:17px; font-weight:500; color:#000000; }
         .cover-page { page-break-after: always; }
         @media print {
@@ -992,9 +992,8 @@ export default function PFReportMVP() {
                     </h1>
                     <div style={{ fontSize: 13, color: "#555555", marginBottom: 32 }}>1차 타당성 검토용 (Quick Screening)</div>
                     <div style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center", width: 110, height: 84,
-                      border: `3px solid ${result.gradeColor}`, borderRadius: 28, color: "#000000",
-                      fontFamily: "'Source Serif 4', serif", fontSize: 28, fontWeight: 700, marginBottom: 24,
+                      color: "#000000", fontFamily: "'Source Serif 4', serif", fontSize: 34, fontWeight: 700,
+                      marginBottom: 24, letterSpacing: "0.05em",
                     }}>
                       {result.grade}
                     </div>
@@ -1024,11 +1023,11 @@ export default function PFReportMVP() {
 
                   {/* ① 종합등급: 위 뱃지(cover-page)에서 이미 표시됨 */}
                   <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 13, background: "#EFEFEF", display: "inline-block", padding: "4px 10px", borderRadius: 2, border: `1px solid ${result.gradeColor}`, color: "#000000", fontWeight: 600 }}>
+                    <div style={{ fontSize: 13, background: "#EFEFEF", display: "inline-block", padding: "4px 10px", borderRadius: 0, border: `1px solid ${result.gradeColor}`, color: "#000000", fontWeight: 600 }}>
                       종합 등급 {result.grade} — {result.gradeNote}
                     </div>
                     <div style={{
-                      fontSize: 12, display: "inline-block", padding: "4px 10px", borderRadius: 2, fontWeight: 600,
+                      fontSize: 12, display: "inline-block", padding: "4px 10px", borderRadius: 0, fontWeight: 600,
                       background: dataNote?.ok ? "#E4EBF3" : "#F3E9E4",
                       color: dataNote?.ok ? "#3B6EA5" : "#9C5A2E",
                     }}>
@@ -1040,7 +1039,7 @@ export default function PFReportMVP() {
                   )}
 
                   {result.financialModelInvalid && (
-                    <div style={{ fontSize: 12, color: "#9C3B34", background: "#F3E4E1", border: "1px solid #9C3B34", borderRadius: 2, padding: "8px 12px", marginTop: 10, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 12, color: "#9C3B34", background: "#F3E4E1", border: "1px solid #9C3B34", borderRadius: 0, padding: "8px 12px", marginTop: 10, lineHeight: 1.6 }}>
                       ⚠ 입력하신 대출금리·취급수수료·대출기간 조합에서는 대출구조가 수학적으로 성립하지 않습니다
                       (금융비용이 총사업비를 초과해 대출금액이 발산). 등급은 자동으로 D 처리되었습니다.
                       금리 또는 대출기간을 낮춰 다시 시도해주세요.
@@ -1048,7 +1047,7 @@ export default function PFReportMVP() {
                   )}
 
                   {result.scoreModel.gateApplied && (
-                    <div style={{ fontSize: 12, color: "#9C5A2E", background: "#F3E9E4", border: "1px solid #9C5A2E", borderRadius: 2, padding: "8px 12px", marginTop: 10, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 12, color: "#9C5A2E", background: "#F3E9E4", border: "1px solid #9C5A2E", borderRadius: 0, padding: "8px 12px", marginTop: 10, lineHeight: 1.6 }}>
                       ⚠ 종합점수는 {result.scoreModel.totalScore.toFixed(1)}점이지만, {
                         result.scoreModel.gateApplied === "financial" ? "금융 안정성 항목 중 2개 이상이 위험 등급으로 판정되어"
                         : result.scoreModel.gateApplied === "stability" ? "인허가·시행사·시공사 항목 중 2개 이상이 위험 등급으로 판정되어"
@@ -1058,7 +1057,7 @@ export default function PFReportMVP() {
                   )}
 
                   {/* ② 심사의견 */}
-                  <div style={{ marginTop: 14, padding: "12px 14px", background: "#F2F2F2", borderRadius: 2, border: `1.5px solid ${result.gradeColor}` }}>
+                  <div style={{ marginTop: 14, padding: "12px 14px", background: "#F2F2F2", borderRadius: 0, border: `1.5px solid ${result.gradeColor}` }}>
                     <div style={{ fontSize: 11, color: "#000000", textTransform: "uppercase", letterSpacing: "0.05em" }}>최종 심사의견</div>
                     <div style={{ fontSize: 17, fontWeight: 700, color: "#000000", marginTop: 2 }}>
                       {DECISION_LABEL[result.gradeBand]}
@@ -1142,7 +1141,7 @@ export default function PFReportMVP() {
                       <div className="metric-num" style={{ color: TIER_COLOR[market.overallTier] }}>{market.overallTier}</div>
                     </div>
                   </div>
-                  <div style={{ background: "#F2F2F2", border: "1px solid #CCCCCC", borderRadius: 2, padding: "10px 12px", fontSize: 13, lineHeight: 1.7, color: "#000000", marginBottom: 12 }}>
+                  <div style={{ background: "#F2F2F2", border: "1px solid #CCCCCC", borderRadius: 0, padding: "10px 12px", fontSize: 13, lineHeight: 1.7, color: "#000000", marginBottom: 12 }}>
                     {market.opinion}
                   </div>
 
@@ -1284,7 +1283,7 @@ export default function PFReportMVP() {
                             <tr key={item.key} style={{ borderBottom: "1px solid #CCCCCC" }}>
                               <td style={{ padding: "6px 4px" }} title={item.reason}>{item.name}</td>
                               <td style={{ padding: "6px 4px" }}>
-                                <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 2, border: "1px solid #CCCCCC", background: "#F2F2F2", color: "#333333" }}>
+                                <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 0, border: "1px solid #CCCCCC", background: "#F2F2F2", color: "#333333" }}>
                                   {item.type}
                                 </span>
                               </td>
@@ -1382,7 +1381,7 @@ export default function PFReportMVP() {
                   />
 
                   <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#000000" }}>7. AI 종합의견</h2>
-                  <div style={{ background: "#F2F2F2", border: `1.5px solid ${result.gradeColor}`, borderRadius: 2, padding: "16px 18px" }}>
+                  <div style={{ background: "#F2F2F2", border: `1.5px solid ${result.gradeColor}`, borderRadius: 0, padding: "16px 18px" }}>
                     <p style={{ fontSize: 14, lineHeight: 1.8, color: "#000000", margin: 0 }}>
                       본 사업지는 사업수익률 {result.margin.toFixed(1)}% 수준으로 산출되어
                       종합 등급 {result.grade}({result.gradeNote})로 평가됩니다. (종합점수 {result.scoreModel.totalScore.toFixed(1)}/100)
@@ -1411,7 +1410,7 @@ export default function PFReportMVP() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ padding: "10px 14px", background: "#F2F2F2", borderRadius: 2, border: `1px solid ${result.gradeColor}` }}>
+                  <div style={{ padding: "10px 14px", background: "#F2F2F2", borderRadius: 0, border: `1px solid ${result.gradeColor}` }}>
                     <div style={{ fontSize: 10.5, color: "#000000", textTransform: "uppercase", letterSpacing: "0.05em" }}>최종 심사의견</div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "#000000", marginTop: 2 }}>{DECISION_LABEL[result.gradeBand]}</div>
                   </div>
