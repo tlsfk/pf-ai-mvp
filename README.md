@@ -1,9 +1,12 @@
-# PF 사업성 심사 리포트 생성기 — 이식용 프로젝트
+# PF 사업성 심사 리포트 생성기 (Quick Screening MVP)
 
 부동산 PF(프로젝트 파이낸싱) 심사역(신탁사·캐피탈·저축은행·자산운용사)을 위한
-사업성 분석 리포트 MVP. 지금은 용도지역별 평균 시세/용적률 가정으로 동작하는
-데모이며, 이 프로젝트는 실제 공공데이터 연동까지 이어서 작업할 수 있게
-구조를 잡아둔 상태입니다.
+1차 사업성 검토 도구. 주소 입력 → 실거래가/용도지역 자동조회 → AI 채점 →
+심사 리포트 생성(PDF/Excel)까지 전 플로우가 동작하는 MVP입니다.
+
+**현재 상태**: 실거래가(국토부)·용도지역/공시지가(브이월드) 실데이터 연동 완료,
+자체 채점모델(v1.4.1)로 등급 산정, 실제 PF 사례 11건(성공2·지연1·부도7·더미1)으로
+검증 완료. 상세 진행상황은 `CONTEXT.md` 참고.
 
 ## 이 폴더를 다른 Claude 계정으로 옮기는 법
 
@@ -11,7 +14,7 @@
 2. 업그레이드된 계정에서 **Claude Code**를 열고, 이 zip을 압축 해제한 폴더를 프로젝트로 열기
    (또는 Claude Code 웹/데스크톱 앱에서 "새 프로젝트 → 폴더 선택")
 3. 새 세션 시작 시 `CONTEXT.md` 파일 내용을 그대로 붙여넣으면, 지금까지의 사업 방향·
-   경쟁사 분석·피벗 결정 배경을 새 계정의 Claude도 바로 파악합니다.
+   경쟁사 분석·기능 구현 이력·미해결 과제를 새 계정의 Claude도 바로 파악합니다.
    (메모리는 계정 간에 자동으로 옮겨지지 않기 때문에, 이 파일이 그 역할을 대신합니다.)
 
 ## 로컬 실행
@@ -21,62 +24,67 @@ npm install
 npm run dev
 ```
 
-`http://localhost:5173` 에서 지금 채팅에서 본 것과 동일한 데모가 그대로 뜹니다.
+`http://localhost:5173` 에서 데모가 뜹니다. 주소를 입력하고 필드에서 벗어나면
+용도지역·공시지가가 자동조회되고(브이월드), "사업성 분석 실행"을 누르면
+실거래가 반영 리포트가 생성됩니다.
 
 ## API 키 상태
 
-`.env.local`에 국토부 실거래가 서비스키(`VITE_MOLIT_API_KEY`)가 이미 채워져 있습니다.
-7개 데이터셋(아파트/아파트상세/연립다세대/오피스텔/단독다가구/상업업무용/토지) 모두
-이 키 하나로 호출되도록 `src/lib/realDataFetcher.js`에 연결해뒀습니다.
+`.env.local`에 아래 키들이 채워져 있습니다(전부 실제 호출 검증 완료):
 
-**다만 이 키가 실제로 동작하는지는 이 대화 세션에서 검증하지 못했습니다.**
-Claude의 작업 환경(샌드박스)은 네트워크 정책상 `apis.data.go.kr` 접속이 막혀 있어서입니다.
-(`Host not in allowlist` 오류) 아래 명령으로 직접 확인해보세요:
+- `VITE_MOLIT_API_KEY` — 국토부 실거래가 7종(아파트/아파트상세/연립다세대/오피스텔/
+  단독다가구/상업업무용/토지), `src/lib/realDataFetcher.js`에서 사용
+- `VITE_VWORLD_API_KEY` — 브이월드 지오코딩+토지특성정보(용도지역·개별공시지가),
+  같은 파일에서 사용
+- `VITE_HUG_*` 3종(사고사업장정보/이행사업장정보/분양이력정보) — **앱 코드에서는
+  아직 안 씀**, PF 사례 검증용 실제 사례 리서치(`data/pf-cases/`)에만 사용한 키
+
+⚠️ 위 앱 API 키는 `VITE_` 접두사라 프로덕션 빌드 시 클라이언트 번들에 노출됩니다.
+로컬 데모 단계라 보류 중 — 실제 배포 전 서버 프록시로 이전 필요(`CONTEXT.md` 참고).
+
+실거래가 API가 정상 동작하는지 직접 확인하려면:
 
 ```bash
 node test-api.mjs
 ```
 
-정상이면 `HTTP status: 200`과 함께 XML 응답(거래 목록)이 출력됩니다.
-`SERVICE KEY IS NOT REGISTERED ERROR` 같은 메시지가 나오면 data.go.kr에서 해당
-데이터셋 활용신청이 아직 "승인대기" 상태일 수 있으니 마이페이지에서 승인 여부를 확인하세요.
+## 검증 스크립트
 
-## 실데이터 연동까지 이어서 하려면 (Claude Code에서 요청할 작업)
+```bash
+node test-scoring.mjs    # 채점모델(scoring/index.js) 회귀 테스트
+node test-pf-cases.mjs   # PF 사례 11건 AI등급 vs 실제결과 비교 검증
+```
 
-지금 이 프로젝트는 **목업 로직(`src/components/PFReportMVP.jsx` 안의 `runAnalysis`)**과
-**실데이터 스캐폴드(`src/lib/realDataFetcher.js`)**가 분리되어 있습니다. 새 계정에서
-Claude Code에게 아래처럼 요청하면 이어서 진행할 수 있습니다.
-
-> "`src/lib/realDataFetcher.js`의 `fetchAptTrades`, `fetchLandUseZone`을
-> `PFReportMVP.jsx`의 `runAnalysis`에 연결해서, 가정치 대신 실제 실거래가·용도지역
-> 데이터를 쓰도록 리팩터링해줘."
-
-### 직접 해야 하는 것 (제가 대신 할 수 없는 부분)
-
-- **data.go.kr 회원가입 + "국토교통부_아파트매매 실거래 상세 자료" 활용신청** →
-  `VITE_MOLIT_API_KEY` 발급 (본인 명의 계정으로만 발급 가능, 보통 즉시~1일)
-- **vworld.kr 회원가입 + Open API 키 발급** → `VITE_VWORLD_API_KEY`
-- 발급받은 키를 `.env.example`을 복사한 `.env.local`에 채워넣기
-- (선택) 주소 → 법정동코드/PNU 변환용 지오코딩 키 (카카오·네이버 지도 API 등, 별도 발급 필요)
-
-이 세 가지는 전부 본인 명의로 개인정보·이용약관 동의가 필요한 절차라 제가 대신
-가입하거나 키를 발급받을 수 없습니다. 키만 발급받아 `.env.local`에 넣으면, 나머지
-연동 작업(파싱, 리포트 반영, 에러 처리)은 Claude Code에서 이어서 요청하시면 됩니다.
+`npm run build` / `npm run lint`와 함께 코드 변경 후 항상 이 4개를 통과 확인하는 게
+이 프로젝트의 관행입니다(`CLAUDE.md`의 Definition of Done 참고).
 
 ## 폴더 구조
 
 ```
-pf-project/
-├── CONTEXT.md              ← 새 세션에 붙여넣을 사업 배경 요약
-├── README.md                ← 이 파일
+pf-project-FINAL/
+├── CONTEXT.md                 ← 새 세션에 붙여넣을 사업 배경 + 진행상황 요약
+├── CLAUDE.md                  ← 개발 워크플로 규칙(커밋 컨벤션, DoD 등)
+├── README.md                  ← 이 파일
 ├── package.json
-├── vite.config.js            ← MOLIT/V-World API 프록시 설정 (CORS 우회)
-├── .env.example
-├── index.html
+├── vite.config.js             ← MOLIT/V-World API 프록시 설정(CORS 우회)
+├── .env.example / .env.local
+├── test-api.mjs               ← MOLIT API 연결 확인용
+├── test-scoring.mjs           ← 채점모델 회귀 테스트
+├── test-pf-cases.mjs          ← PF 사례 검증 회귀 테스트
+├── data/
+│   └── pf-cases/               ← PF 사례 11건(케이스별 JSON) + 스키마 설명(README.md)
+├── docs/superpowers/
+│   ├── specs/                  ← 브레인스토밍 결과 설계 문서
+│   └── plans/                  ← 구현 계획 문서
 └── src/
     ├── main.jsx
     ├── components/
-    │   └── PFReportMVP.jsx   ← 현재 데모 (목업 로직 포함)
+    │   └── PFReportMVP.jsx     ← 리포트 UI(입력 폼 + 리포트 렌더링)
     └── lib/
-        └── realDataFetcher.js ← 실데이터 연동 스캐폴드 (키만 넣으면 동작)
+        ├── analysis.js         ← runAnalysis(핵심 계산: 사업수지·LTV·DSCR 등)
+        ├── scoring/index.js    ← 채점모델(카테고리별 배점·하드게이트·등급 산정)
+        ├── pfCases.js          ← PF 사례 로딩 + AI등급 vs 실제결과 판정 로직
+        ├── realDataFetcher.js  ← 국토부 실거래가 + 브이월드 실데이터 연동
+        ├── lawdCodes.js        ← 전국 법정동코드(LAWD_CD) 매핑
+        └── analysisStorage.js  ← 분석 이력 localStorage 저장/조회
 ```
