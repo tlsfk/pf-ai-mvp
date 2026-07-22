@@ -451,7 +451,12 @@ export default function PFReportMVP() {
     setHistoryList(loadAnalysisHistory());
   };
 
-  const handleDownload = () => window.print();
+  // "요약만 보기" 상태로 인쇄하면 상세 섹션이 통째로 빠진 PDF가 나가므로, 인쇄 직전 항상 전체 펼침으로
+  // 전환합니다. setExpanded 직후에는 아직 DOM이 안 바뀐 상태라 페인트 한 프레임 뒤에 print를 호출합니다.
+  const handleDownload = () => {
+    setExpanded(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+  };
 
   // 이력에서 폼만 불러오고 재분석은 하지 않음(사용자가 값 확인/수정 후 직접 "사업성 분석 실행"을 누르게 함)
   const handleHistoryLoad = (record) => {
@@ -594,12 +599,15 @@ export default function PFReportMVP() {
           font-family:'Source Serif 4', serif; font-size:20px; font-weight:700; letter-spacing:0.02em;
           transform:rotate(-6deg); opacity:0.9; white-space:nowrap;
         }
+        .cover-page { page-break-after: always; }
         @media print {
           body * { visibility:hidden; }
           .paper, .paper * { visibility:visible; }
           .paper { position:absolute; top:0; left:0; width:100%; box-shadow:none; }
           .input-panel { display:none !important; }
           .app-grid { display:block !important; }
+          table, .metric-card { page-break-inside: avoid; }
+          h2 { page-break-after: avoid; }
         }
       `}</style>
 
@@ -884,6 +892,36 @@ export default function PFReportMVP() {
                 </div>
 
                 <div className="paper" style={{ position: "relative" }}>
+                  <div className="cover-page" style={{ textAlign: "center", padding: "60px 20px", borderBottom: "2px solid #C4BCA8", marginBottom: 32 }}>
+                    <div style={{ fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", color: "#7A7058", marginBottom: 16 }}>
+                      Real Estate Decision OS
+                    </div>
+                    <h1 style={{ fontFamily: "'Source Serif 4', serif", fontSize: 30, margin: "0 0 8px", color: "#1F1C14" }}>
+                      부동산 PF 사업성 심사 리포트
+                    </h1>
+                    <div style={{ fontSize: 13, color: "#5C5744", marginBottom: 32 }}>1차 타당성 검토용 (Quick Screening)</div>
+                    <div style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center", width: 90, height: 68,
+                      border: `3px solid ${result.gradeColor}`, borderRadius: 34, color: result.gradeColor,
+                      fontFamily: "'Source Serif 4', serif", fontSize: 22, fontWeight: 700, marginBottom: 24,
+                    }}>
+                      {result.grade}
+                    </div>
+                    <table style={{ margin: "0 auto", fontSize: 13, borderCollapse: "collapse" }}>
+                      <tbody>
+                        <tr><td style={{ padding: "4px 12px", color: "#7A7058", textAlign: "right" }}>사업지</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#1F1C14", fontWeight: 600 }}>{form.address}</td></tr>
+                        <tr><td style={{ padding: "4px 12px", color: "#7A7058", textAlign: "right" }}>사업유형</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#1F1C14" }}>{form.zone} · {form.projectType}</td></tr>
+                        <tr><td style={{ padding: "4px 12px", color: "#7A7058", textAlign: "right" }}>심사 대상 기관</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#1F1C14" }}>{form.lender}</td></tr>
+                        <tr><td style={{ padding: "4px 12px", color: "#7A7058", textAlign: "right" }}>종합 등급</td><td style={{ padding: "4px 12px", textAlign: "left", color: result.gradeColor, fontWeight: 600 }}>{result.grade} ({result.gradeNote})</td></tr>
+                        <tr><td style={{ padding: "4px 12px", color: "#7A7058", textAlign: "right" }}>종합점수</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#1F1C14" }}>{result.scoreModel.totalScore.toFixed(1)}/100</td></tr>
+                        <tr><td style={{ padding: "4px 12px", color: "#7A7058", textAlign: "right" }}>발행일</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#1F1C14" }}>{new Date().toLocaleDateString("ko-KR")}</td></tr>
+                      </tbody>
+                    </table>
+                    <div style={{ marginTop: 32, fontSize: 11, color: "#9C5A2E", maxWidth: 420, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>
+                      본 리포트는 부동산 PF 사업성에 대한 1차 검토(Quick Screening)를 지원하는 참고도구이며, 투자권유 또는 투자자문을 제공하지 않습니다.
+                    </div>
+                  </div>
+
                   <div className="stamp" style={{ borderColor: result.gradeColor, color: result.gradeColor }}>
                     {result.grade}
                   </div>
@@ -995,7 +1033,71 @@ export default function PFReportMVP() {
                     <li>세전이익 {fmt(result.profit)}만원(세전이익률 {result.margin.toFixed(1)}%) 수준으로 산출되어 종합 등급 {result.grade}({result.gradeNote})로 평가됨.</li>
                   </ul>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>금융개요</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>1. 사업 개요</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 4 }}>출처: 대지면적(사용자 입력) · 용적률(국토계획법 시행령·서울시 도시계획조례)</div>
+                  <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse", marginBottom: 4 }}>
+                    <tbody>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818", width: 140 }}>대지면적</td><td style={{ padding: "6px 4px" }}>{fmt(result.landAreaPy)}평</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>적용 용적률</td><td style={{ padding: "6px 4px" }}>{result.far}%</td></tr>
+                      <tr><td style={{ padding: "6px 4px", color: "#332818" }}>연면적</td><td style={{ padding: "6px 4px" }}>{fmt(result.grossFloorPy)}평</td></tr>
+                    </tbody>
+                  </table>
+
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>2. 시장성 분석</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    입지·공급경쟁·주변 실거래·예상 분양률(아래 5번 종합 평가항목 표에서 이미 채점된 값)을 시장 관점으로 모아본 것입니다. 별도 시장 데이터를 새로 수집하지 않았습니다.
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+                    <div className="metric-card">
+                      <div style={{ fontSize: 11, color: "#332818" }}>분양 경쟁력</div>
+                      <div className="metric-num" style={{ color: TIER_COLOR[market.salesCompetitiveness === "취약" ? "위험" : market.salesCompetitiveness === "우수" ? "우수" : "보통"] }}>{market.salesCompetitiveness}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div style={{ fontSize: 11, color: "#332818" }}>공급 리스크</div>
+                      <div className="metric-num" style={{ color: TIER_COLOR[market.supplyRiskLabel === "높음" ? "위험" : market.supplyRiskLabel === "낮음" ? "우수" : "보통"] }}>{market.supplyRiskLabel}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div style={{ fontSize: 11, color: "#332818" }}>시장 종합 평가</div>
+                      <div className="metric-num" style={{ color: TIER_COLOR[market.overallTier] }}>{market.overallTier}</div>
+                    </div>
+                  </div>
+                  <div style={{ background: "#F1EEE5", border: "1px solid #C4BCA8", borderRadius: 4, padding: "10px 12px", fontSize: 13, lineHeight: 1.7, color: "#1F1C14", marginBottom: 12 }}>
+                    {market.opinion}
+                  </div>
+
+                  {dataNote?.ok && comps.length > 0 && (
+                    <>
+                      <h3 style={{ fontSize: 13, marginBottom: 8, color: "#1F1C14" }}>인근 실거래 비교 (Comps)</h3>
+                      <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 4 }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
+                            <td style={{ padding: "6px 4px" }}>단지/건물명</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>거래금액</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>전용면적</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>평당가</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>거래시점</td>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {comps.slice(0, 8).map((c, i) => (
+                            <tr key={i} style={{ borderBottom: "1px solid #8F8770" }}>
+                              <td style={{ padding: "6px 4px" }}>{c.name}</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(c.dealAmount)}만원</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{c.area}㎡</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(c.pricePerPy)}만원</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right", color: "#332818" }}>{c.dealYear}.{c.dealMonth}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                        ※ 국토교통부 실거래가 API로 조회된 실제 거래 내역입니다(최대 8건 표시, 조회 조건: 동일 시군구·최근 공시월).
+                        본 사업지와 정확히 인접하지 않을 수 있습니다.
+                      </div>
+                    </>
+                  )}
+
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>3. 금융 개요</h2>
                   <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse", marginBottom: 4 }}>
                     <tbody>
                       <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818", width: 140 }}>차주사(시행사)</td><td style={{ padding: "6px 4px" }}>[T.B.D] — 실적: {form.developerTrack}</td></tr>
@@ -1008,7 +1110,7 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 15, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>PF 자금용도 (단위: 만원)</h2>
+                  <h3 style={{ fontSize: 13, marginTop: 16, marginBottom: 8, color: "#1F1C14" }}>PF 자금용도 (단위: 만원)</h3>
                   <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse", marginBottom: 4 }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
@@ -1050,6 +1152,105 @@ export default function PFReportMVP() {
                     ※ Equity/PF대출 배분은 항목별로 자기자본비율({result.equityRatio}%)을 균등 적용한 단순화 값입니다.
                     실제로는 토지비 선투입 등 조달 순서에 따라 배분이 달라질 수 있습니다.
                   </div>
+
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>4. 사업성 지표</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 4 }}>
+                    출처: 총사업비({result.totalCostSource}) · 분양수입 평당가({dataNote?.ok ? "국토교통부 실거래가 API" : "가정치(실거래가 조회 실패)"}) ·
+                    토지매입비({result.landCostSource}) · 공사비({result.constructionCostSource}) · 소프트비용({result.generalCostSource}) · 대출조건(사용자 입력 또는 기본값)
+                  </div>
+                  <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse", marginBottom: 4 }}>
+                    <tbody>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818", width: 140 }}>총사업비</td><td style={{ padding: "6px 4px" }}>{fmt(result.totalCost)}만원</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>예상 분양수입</td><td style={{ padding: "6px 4px" }}>{fmt(result.salesRevenue)}만원</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>사업수지 (이익)</td><td style={{ padding: "6px 4px", color: result.profit > 0 ? "#2F6F5E" : "#9C3B34", fontWeight: 600 }}>{fmt(result.profit)}만원</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>사업수익률</td><td style={{ padding: "6px 4px" }}>{result.margin.toFixed(1)}%</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>PF 대출금액</td><td style={{ padding: "6px 4px" }}>{fmt(result.loanAmount)}만원</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>자기자본</td><td style={{ padding: "6px 4px" }}>{fmt(result.equityAmount)}만원</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>금융비용</td><td style={{ padding: "6px 4px" }}>{fmt(result.financeCost)}만원</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>LTV</td><td style={{ padding: "6px 4px" }}>{result.ltv.toFixed(1)}%</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>DSCR</td><td style={{ padding: "6px 4px" }}>{result.dscr}x</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>All-in cost</td><td style={{ padding: "6px 4px" }}>{result.allInCost.toFixed(1)}%</td></tr>
+                      <tr><td style={{ padding: "6px 4px", color: "#332818" }}>공사비(평당)</td><td style={{ padding: "6px 4px" }}>{fmt(result.constructionCostPerPy)}만원</td></tr>
+                    </tbody>
+                  </table>
+
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>
+                    5. 종합 평가항목 (종합점수 {result.scoreModel.totalScore.toFixed(1)}/100 — 금융안정성40·사업성30·사업안정성20·입지경쟁력10 가중합산)
+                  </h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    “정량”은 공식으로 산출되어 재현 가능한 값, “정성”은 사용자 입력·선택에 따른 정성적 판정입니다.
+                  </div>
+                  <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 4 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
+                        <td style={{ padding: "6px 4px" }}>항목</td>
+                        <td style={{ padding: "6px 4px" }}>구분</td>
+                        <td style={{ padding: "6px 4px" }}>값</td>
+                        <td style={{ padding: "6px 4px", textAlign: "center" }}>점수</td>
+                        <td style={{ padding: "6px 4px", textAlign: "center" }}>등급</td>
+                        <td style={{ padding: "6px 4px" }}>출처</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.scoreModel.categories.map((cat) => (
+                        <React.Fragment key={cat.key}>
+                          <tr style={{ background: "#EFEBDD" }}>
+                            <td colSpan={6} style={{ padding: "6px 4px", fontWeight: 700, color: "#332818" }}>
+                              {cat.name} ({cat.score.toFixed(1)}/{cat.maxPoints})
+                            </td>
+                          </tr>
+                          {cat.items.map((item) => (
+                            <tr key={item.key} style={{ borderBottom: "1px solid #8F8770" }}>
+                              <td style={{ padding: "6px 4px" }} title={item.reason}>{item.name}</td>
+                              <td style={{ padding: "6px 4px" }}>
+                                <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: item.type === "정량" ? "#DDE8E5" : "#EFE6D8", color: item.type === "정량" ? "#2F6F5E" : "#8A6A2E" }}>
+                                  {item.type}
+                                </span>
+                              </td>
+                              <td style={{ padding: "6px 4px", color: "#332818" }}>{item.detail}</td>
+                              <td style={{ padding: "6px 4px", textAlign: "center" }}>{item.score.toFixed(1)}/{item.maxPoints}</td>
+                              <td style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, color: TIER_COLOR[item.tier] }}>{item.tier}</td>
+                              <td style={{ padding: "6px 4px", fontSize: 11, color: "#5C5744" }}>{item.source}</td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                      <tr style={{ fontWeight: 700 }}>
+                        <td colSpan={3} style={{ padding: "6px 4px" }}>종합점수 (4개 카테고리 가중합산)</td>
+                        <td style={{ padding: "6px 4px", textAlign: "center" }}>{result.scoreModel.totalScore.toFixed(1)}/100</td>
+                        <td style={{ padding: "6px 4px", textAlign: "center", color: result.gradeColor }}>{result.grade}</td>
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>6. 리스크 분석</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    5번 종합 평가항목 표에서 “위험”·“보통”으로 판정된 항목 전체를 배점 손실이 큰 순으로 모은 것입니다(새 데이터 없이 기존 채점 결과 재구성).
+                  </div>
+                  {result.financialModelInvalid && (
+                    <div style={{ fontSize: 12, color: "#9C3B34", marginBottom: 8 }}>⚠ 대출구조가 수학적으로 성립하지 않아 등급이 자동 D 처리되었습니다.</div>
+                  )}
+                  {result.scoreModel.gateApplied && (
+                    <div style={{ fontSize: 12, color: "#9C5A2E", marginBottom: 8 }}>
+                      ⚠ {
+                        result.scoreModel.gateApplied === "financial" ? "금융 안정성 항목 중 2개 이상이 위험 등급으로 판정되어"
+                        : result.scoreModel.gateApplied === "stability" ? "인허가·시행사·시공사 항목이 전부 위험 등급으로 판정되어"
+                        : "금융 안정성 항목 다수와 인허가·시행사·시공사 항목이 모두 위험 등급으로 판정되어"
+                      } 등급이 BB(투기적) 이하로 제한되었습니다.
+                    </div>
+                  )}
+                  {topRiskItems(result.scoreModel, 99).length === 0 ? (
+                    <div style={{ fontSize: 13, color: "#2F6F5E" }}>모든 평가항목이 우수로 판정되어 특별한 리스크가 없습니다.</div>
+                  ) : topRiskItems(result.scoreModel, 99).map((item) => (
+                    <div key={item.key} style={{ padding: "7px 0", borderBottom: "1px solid #8F8770" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.categoryName} · {item.name}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[item.tier], whiteSpace: "nowrap" }}>{item.tier} ({item.score.toFixed(1)}/{item.maxPoints})</div>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#332818", marginTop: 2 }}>{item.reason}</div>
+                    </div>
+                  ))}
 
                   <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>분양률 스트레스 테스트</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
@@ -1142,142 +1343,7 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>
-                    1. 종합 평가항목 (종합점수 {result.scoreModel.totalScore.toFixed(1)}/100 — 금융안정성40·사업성30·사업안정성20·입지경쟁력10 가중합산)
-                  </h2>
-                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                    “정량”은 공식으로 산출되어 재현 가능한 값, “정성”은 사용자 입력·선택에 따른 정성적 판정입니다.
-                  </div>
-                  <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 4 }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
-                        <td style={{ padding: "6px 4px" }}>항목</td>
-                        <td style={{ padding: "6px 4px" }}>구분</td>
-                        <td style={{ padding: "6px 4px" }}>값</td>
-                        <td style={{ padding: "6px 4px", textAlign: "center" }}>점수</td>
-                        <td style={{ padding: "6px 4px", textAlign: "center" }}>등급</td>
-                        <td style={{ padding: "6px 4px" }}>출처</td>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.scoreModel.categories.map((cat) => (
-                        <React.Fragment key={cat.key}>
-                          <tr style={{ background: "#EFEBDD" }}>
-                            <td colSpan={6} style={{ padding: "6px 4px", fontWeight: 700, color: "#332818" }}>
-                              {cat.name} ({cat.score.toFixed(1)}/{cat.maxPoints})
-                            </td>
-                          </tr>
-                          {cat.items.map((item) => (
-                            <tr key={item.key} style={{ borderBottom: "1px solid #8F8770" }}>
-                              <td style={{ padding: "6px 4px" }} title={item.reason}>{item.name}</td>
-                              <td style={{ padding: "6px 4px" }}>
-                                <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: item.type === "정량" ? "#DDE8E5" : "#EFE6D8", color: item.type === "정량" ? "#2F6F5E" : "#8A6A2E" }}>
-                                  {item.type}
-                                </span>
-                              </td>
-                              <td style={{ padding: "6px 4px", color: "#332818" }}>{item.detail}</td>
-                              <td style={{ padding: "6px 4px", textAlign: "center" }}>{item.score.toFixed(1)}/{item.maxPoints}</td>
-                              <td style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, color: TIER_COLOR[item.tier] }}>{item.tier}</td>
-                              <td style={{ padding: "6px 4px", fontSize: 11, color: "#5C5744" }}>{item.source}</td>
-                            </tr>
-                          ))}
-                        </React.Fragment>
-                      ))}
-                      <tr style={{ fontWeight: 700 }}>
-                        <td colSpan={3} style={{ padding: "6px 4px" }}>종합점수 (4개 카테고리 가중합산)</td>
-                        <td style={{ padding: "6px 4px", textAlign: "center" }}>{result.scoreModel.totalScore.toFixed(1)}/100</td>
-                        <td style={{ padding: "6px 4px", textAlign: "center", color: result.gradeColor }}>{result.grade}</td>
-                        <td></td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>2. 사업 개요</h2>
-                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 4 }}>출처: 대지면적(사용자 입력) · 용적률(국토계획법 시행령·서울시 도시계획조례)</div>
-                  <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse", marginBottom: 4 }}>
-                    <tbody>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818", width: 140 }}>대지면적</td><td style={{ padding: "6px 4px" }}>{fmt(result.landAreaPy)}평</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>적용 용적률</td><td style={{ padding: "6px 4px" }}>{result.far}%</td></tr>
-                      <tr><td style={{ padding: "6px 4px", color: "#332818" }}>연면적</td><td style={{ padding: "6px 4px" }}>{fmt(result.grossFloorPy)}평</td></tr>
-                    </tbody>
-                  </table>
-
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>3. 시장성 분석</h2>
-                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                    입지·공급경쟁·주변 실거래·예상 분양률(위 1번 종합 평가항목 표에서 이미 채점된 값)을 시장 관점으로 모아본 것입니다. 별도 시장 데이터를 새로 수집하지 않았습니다.
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
-                    <div className="metric-card">
-                      <div style={{ fontSize: 11, color: "#332818" }}>분양 경쟁력</div>
-                      <div className="metric-num" style={{ color: TIER_COLOR[market.salesCompetitiveness === "취약" ? "위험" : market.salesCompetitiveness === "우수" ? "우수" : "보통"] }}>{market.salesCompetitiveness}</div>
-                    </div>
-                    <div className="metric-card">
-                      <div style={{ fontSize: 11, color: "#332818" }}>공급 리스크</div>
-                      <div className="metric-num" style={{ color: TIER_COLOR[market.supplyRiskLabel === "높음" ? "위험" : market.supplyRiskLabel === "낮음" ? "우수" : "보통"] }}>{market.supplyRiskLabel}</div>
-                    </div>
-                    <div className="metric-card">
-                      <div style={{ fontSize: 11, color: "#332818" }}>시장 종합 평가</div>
-                      <div className="metric-num" style={{ color: TIER_COLOR[market.overallTier] }}>{market.overallTier}</div>
-                    </div>
-                  </div>
-                  <div style={{ background: "#F1EEE5", border: "1px solid #C4BCA8", borderRadius: 4, padding: "10px 12px", fontSize: 13, lineHeight: 1.7, color: "#1F1C14", marginBottom: 12 }}>
-                    {market.opinion}
-                  </div>
-
-                  {dataNote?.ok && comps.length > 0 && (
-                    <>
-                      <h3 style={{ fontSize: 13, marginBottom: 8, color: "#1F1C14" }}>인근 실거래 비교 (Comps)</h3>
-                      <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 4 }}>
-                        <thead>
-                          <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
-                            <td style={{ padding: "6px 4px" }}>단지/건물명</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>거래금액</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>전용면적</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>평당가</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>거래시점</td>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {comps.slice(0, 8).map((c, i) => (
-                            <tr key={i} style={{ borderBottom: "1px solid #8F8770" }}>
-                              <td style={{ padding: "6px 4px" }}>{c.name}</td>
-                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(c.dealAmount)}만원</td>
-                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{c.area}㎡</td>
-                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(c.pricePerPy)}만원</td>
-                              <td style={{ padding: "6px 4px", textAlign: "right", color: "#332818" }}>{c.dealYear}.{c.dealMonth}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                        ※ 국토교통부 실거래가 API로 조회된 실제 거래 내역입니다(최대 8건 표시, 조회 조건: 동일 시군구·최근 공시월).
-                        본 사업지와 정확히 인접하지 않을 수 있습니다.
-                      </div>
-                    </>
-                  )}
-
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>4. 사업성 지표</h2>
-                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 4 }}>
-                    출처: 총사업비({result.totalCostSource}) · 분양수입 평당가({dataNote?.ok ? "국토교통부 실거래가 API" : "가정치(실거래가 조회 실패)"}) ·
-                    토지매입비({result.landCostSource}) · 공사비({result.constructionCostSource}) · 소프트비용({result.generalCostSource}) · 대출조건(사용자 입력 또는 기본값)
-                  </div>
-                  <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse", marginBottom: 4 }}>
-                    <tbody>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818", width: 140 }}>총사업비</td><td style={{ padding: "6px 4px" }}>{fmt(result.totalCost)}만원</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>예상 분양수입</td><td style={{ padding: "6px 4px" }}>{fmt(result.salesRevenue)}만원</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>사업수지 (이익)</td><td style={{ padding: "6px 4px", color: result.profit > 0 ? "#2F6F5E" : "#9C3B34", fontWeight: 600 }}>{fmt(result.profit)}만원</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>사업수익률</td><td style={{ padding: "6px 4px" }}>{result.margin.toFixed(1)}%</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>PF 대출금액</td><td style={{ padding: "6px 4px" }}>{fmt(result.loanAmount)}만원</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>자기자본</td><td style={{ padding: "6px 4px" }}>{fmt(result.equityAmount)}만원</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>금융비용</td><td style={{ padding: "6px 4px" }}>{fmt(result.financeCost)}만원</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>LTV</td><td style={{ padding: "6px 4px" }}>{result.ltv.toFixed(1)}%</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>DSCR</td><td style={{ padding: "6px 4px" }}>{result.dscr}x</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>All-in cost</td><td style={{ padding: "6px 4px" }}>{result.allInCost.toFixed(1)}%</td></tr>
-                      <tr><td style={{ padding: "6px 4px", color: "#332818" }}>공사비(평당)</td><td style={{ padding: "6px 4px" }}>{fmt(result.constructionCostPerPy)}만원</td></tr>
-                    </tbody>
-                  </table>
-
-                  <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>5. AI 종합의견</h2>
+                  <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>7. AI 종합의견</h2>
                   <div style={{ background: "#F1EEE5", border: `1.5px solid ${result.gradeColor}`, borderRadius: 5, padding: "16px 18px" }}>
                     <p style={{ fontSize: 14, lineHeight: 1.8, color: "#1F1C14", margin: 0 }}>
                       본 사업지는 사업수익률 {result.margin.toFixed(1)}% 수준으로 산출되어
