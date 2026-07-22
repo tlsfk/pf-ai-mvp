@@ -4,16 +4,45 @@ import { fetchTrades, geocodeToPnu, fetchLandCharacteristics } from "../lib/real
 import * as XLSX from "xlsx";
 import { addressToLawdCd, recentDealYmd, LAWD_CODES, AMBIGUOUS_GU } from "../lib/lawdCodes";
 import {
-  SCORING_MODEL_VERSION, TIER_COLOR,
+  SCORING_MODEL_VERSION, TIER_COLOR, computeScoreModel,
   DEVELOPER_OPTIONS, CONTRACTOR_OPTIONS, LOCATION_OPTIONS, PERMIT_OPTIONS, SUPPLY_OPTIONS,
   CREDIT_ENHANCEMENT_OPTIONS, topRiskItems, topStrengthItems,
 } from "../lib/scoring";
 import { saveAnalysisResult, buildAnalysisRecord, loadAnalysisHistory, deleteAnalysisResult } from "../lib/analysisStorage";
-import { runAnalysis, ZONE_FAR, PLACEHOLDER_DEFAULTS } from "../lib/analysis";
+import { runAnalysis, ZONE_FAR, PLACEHOLDER_DEFAULTS, allInCostRate } from "../lib/analysis";
 import { loadCaseComparisons } from "../lib/pfCases";
 
 const OUTCOME_LABEL = { success: "성공", delayed: "지연", default: "부도", unknown: "미확정" };
 const VERDICT_COLOR = { 일치: "#8AB89A", 불일치: "#D98C7A", 판정보류: "#9A9E9F", "계산 실패": "#D98C7A" };
+
+// 최종 심사의견 — 새 판정 로직이 아니라 기존 gradeBand(5단계)를 4개 실무 용어로 매핑만 함.
+// speculative·weak는 GRADE_META 자체가 이미 "투기적"·"고위험 재검토 권고"로 구분해뒀으므로 둘 다 "재검토"로,
+// default(D, "심사 불가")만 별도로 "부결 권고"로 분리.
+const DECISION_LABEL = {
+  high: "승인 권고",
+  good: "조건부 승인",
+  speculative: "재검토",
+  weak: "재검토",
+  default: "부결 권고",
+};
+const DECISION_BAND_REASON = {
+  high: "핵심 지표가 전반적으로 우수해 표준 심사 절차로 진행할 수 있습니다.",
+  good: "전반적으로 양호하나, 일부 리스크 항목에 대한 보완자료 확보 후 진행을 권고합니다.",
+  speculative: "투기적 등급 구간으로, 조달구조·분양전략에 대한 보완 없이는 승인이 어려울 수 있습니다.",
+  weak: "고위험 등급 구간으로, 사업 구조 전반에 대한 재검토가 필요합니다.",
+  default: "사업수지 또는 리스크 스코어가 기준선에 크게 미달해 부결 또는 전면 재구조화가 필요합니다.",
+};
+const DECISION_GATE_REASON = {
+  financial: "금융 안정성 항목 중 2개 이상이 위험 등급으로 판정되어 등급이 제한되었습니다.",
+  stability: "인허가·시행사·시공사 항목 중 2개 이상이 위험 등급으로 판정되어 등급이 제한되었습니다.",
+  both: "금융 안정성과 사업 진행 리스크가 동시에 위험 수준으로 판정되어 등급이 제한되었습니다.",
+};
+/** 최종 심사의견의 2~3줄 근거 — 전부 기존 등급·게이트 결과를 문장으로 재구성한 것이며 새 판단을 만들지 않음. */
+function buildDecisionReason(result) {
+  const gateSentence = DECISION_GATE_REASON[result.scoreModel.gateApplied] || "";
+  const bandSentence = DECISION_BAND_REASON[result.gradeBand];
+  return `${gateSentence ? gateSentence + " " : ""}${bandSentence} (종합점수 ${result.scoreModel.totalScore.toFixed(1)}/100, 등급 ${result.grade})`;
+}
 
 // 사업유형별로 어떤 실거래가 데이터셋을 조회할지
 // LAWD_CD(5자리) -> 사람이 읽을 지역명. 주소 입력 즉시(네트워크 호출 없이) 어느 시군구로
@@ -155,6 +184,62 @@ function costOverrunStressRow(result, overrunPct) {
 }
 
 /**
+ * 스트레스 시나리오 4종(기본/금리+3%p/공사비+10%/분양률-10%)을 한 표로 비교하기 위해
+ * 기존 스트레스 함수(stressTestRow 등)의 결과를 가져와 재무 4항목만 재계산하고
+ * computeScoreModel에 그대로 넣어 시나리오별 등급까지 재산정합니다. 스트레스 계산
+ * 로직도, 채점 로직도 전혀 새로 만들지 않고 기존 함수를 조합만 합니다.
+ */
+function buildStressComparison(form, result, compsCount) {
+  const sharedCtx = {
+    equityRatio: Number(form.equityRatio),
+    equityRatioIsDefault: Number(form.equityRatio) === PLACEHOLDER_DEFAULTS.equityRatio,
+    usingRealData: result.usingRealData, compsCount,
+    locationTier: form.locationTier, locationTierIsDefault: form.locationTier === PLACEHOLDER_DEFAULTS.locationTier,
+    supplyCompetition: form.supplyCompetition, supplyCompetitionIsDefault: form.supplyCompetition === PLACEHOLDER_DEFAULTS.supplyCompetition,
+    creditEnhancement: form.creditEnhancement, creditEnhancementIsDefault: form.creditEnhancement === PLACEHOLDER_DEFAULTS.creditEnhancement,
+    projectType: form.projectType, permitStage: form.permitStage,
+    developerTrack: form.developerTrack, developerTrackIsDefault: form.developerTrack === PLACEHOLDER_DEFAULTS.developerTrack,
+    contractorGrade: form.contractorGrade, contractorGradeIsDefault: form.contractorGrade === PLACEHOLDER_DEFAULTS.contractorGrade,
+    financialModelInvalid: result.financialModelInvalid,
+  };
+  const expectedSaleRateIsDefault = Number(result.expectedSaleRate) === PLACEHOLDER_DEFAULTS.expectedSaleRate;
+  const gradeOf = (over) => computeScoreModel({ ...sharedCtx, ...over });
+
+  const base = gradeOf({
+    ltv: result.ltv, dscr: Number(result.dscr), allInCost: result.allInCost, profit: result.profit,
+    expectedSaleRate: result.expectedSaleRate, expectedSaleRateIsDefault,
+  });
+
+  const rateRow = interestRateStressRow(result, 3);
+  const rateModel = gradeOf({
+    ltv: result.ltv, dscr: rateRow.dscr ?? 0,
+    allInCost: allInCostRate(result.interestRate + 3, result.originationFee, result.loanTermMonths),
+    profit: rateRow.profit, expectedSaleRate: result.expectedSaleRate, expectedSaleRateIsDefault,
+  });
+
+  const costRow = costOverrunStressRow(result, 10);
+  const costModel = gradeOf({
+    ltv: result.ltv, dscr: costRow.dscr ?? 0, allInCost: result.allInCost, profit: costRow.profit,
+    expectedSaleRate: result.expectedSaleRate, expectedSaleRateIsDefault,
+  });
+
+  const saleRatePct = Math.max(0, Math.round(result.expectedSaleRate) - 10);
+  const saleRow = stressTestRow(result, saleRatePct);
+  const saleModel = gradeOf({
+    ltv: saleRow.revenue > 0 ? (result.loanAmount / saleRow.revenue) * 100 : result.ltv,
+    dscr: saleRow.dscr ?? 0, allInCost: result.allInCost, profit: saleRow.profit,
+    expectedSaleRate: saleRatePct, expectedSaleRateIsDefault: false,
+  });
+
+  return [
+    { key: "base", label: "기본(현재 가정)", model: base, profit: result.profit, margin: result.margin, dscr: Number(result.dscr), highlight: true },
+    { key: "rate", label: "금리 +3%p", model: rateModel, profit: rateRow.profit, margin: rateRow.margin, dscr: rateRow.dscr },
+    { key: "cost", label: "공사비 +10%", model: costModel, profit: costRow.profit, margin: costRow.margin, dscr: costRow.dscr },
+    { key: "sale", label: `분양률 ${saleRatePct}%(-10%p)`, model: saleModel, profit: saleRow.profit, margin: saleRow.margin, dscr: saleRow.dscr },
+  ];
+}
+
+/**
  * "시장성 분석" 섹션용 요약 — 새 채점 로직이 아니라, 이미 scoring 모듈이 산정해 둔
  * 입지(locationBase)·공급경쟁(supplyCompetition)·예상분양률(expectedSaleRate)·주변실거래(comps)
  * 항목의 tier/detail/reason을 그대로 모아 시장 관점 문장으로 재구성만 합니다.
@@ -267,6 +352,36 @@ function StressTestTable({ title, warning, scenarioLabel, col2Label, rows, topMa
         </tbody>
       </table>
     </>
+  );
+}
+
+/** buildStressComparison() 결과를 시나리오별 등급까지 한 표로 보여준다(아래 개별 스트레스 표 3종과 별개, 요약용). */
+function StressComparisonTable({ rows }) {
+  return (
+    <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse", marginBottom: 20 }}>
+      <thead>
+        <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
+          <td style={{ padding: "6px 4px" }}>시나리오</td>
+          <td style={{ padding: "6px 4px", textAlign: "right" }}>사업수지</td>
+          <td style={{ padding: "6px 4px", textAlign: "right" }}>수익률</td>
+          <td style={{ padding: "6px 4px", textAlign: "right" }}>DSCR</td>
+          <td style={{ padding: "6px 4px", textAlign: "center" }}>등급</td>
+          <td style={{ padding: "6px 4px", textAlign: "right" }}>종합점수</td>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.key} style={{ borderBottom: "1px solid #8F8770", background: r.highlight ? "#F1EEE5" : "transparent" }}>
+            <td style={{ padding: "6px 4px" }}>{r.label}</td>
+            <td style={{ padding: "6px 4px", textAlign: "right", color: profitColor(r.profit) }}>{fmt(r.profit)}만원</td>
+            <td style={{ padding: "6px 4px", textAlign: "right" }}>{r.margin.toFixed(1)}%</td>
+            <td style={{ padding: "6px 4px", textAlign: "right", color: dscrColor(r.dscr) }}>{r.dscr != null ? r.dscr.toFixed(2) + "x" : "-"}</td>
+            <td style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, color: r.model.gradeColor }}>{r.model.grade}</td>
+            <td style={{ padding: "6px 4px", textAlign: "right" }}>{r.model.totalScore.toFixed(1)}/100</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -959,13 +1074,13 @@ export default function PFReportMVP() {
                     <ScoreItemRow key={item.key} item={item} />
                   ))}
 
-                  <div style={{ marginTop: 16, padding: "12px 14px", background: "#F1EEE5", borderRadius: 4, border: `1px solid ${result.gradeColor}` }}>
-                    <div style={{ fontSize: 11, color: "#332818", textTransform: "uppercase", letterSpacing: "0.05em" }}>추천 여부</div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: result.gradeColor, marginTop: 2 }}>
-                      {result.gradeBand === "high" && "심사 적합 — 표준 절차로 진행 권고"}
-                      {result.gradeBand === "good" && "조건부 적합 — 보완자료 확보 후 진행 권고"}
-                      {result.gradeBand === "speculative" && "투기적 등급 — 조달구조 보완 필요"}
-                      {(result.gradeBand === "weak" || result.gradeBand === "default") && "심사 보류 권고 — 조건 재검토 필요"}
+                  <div style={{ marginTop: 16, padding: "12px 14px", background: "#F1EEE5", borderRadius: 4, border: `1.5px solid ${result.gradeColor}` }}>
+                    <div style={{ fontSize: 11, color: "#332818", textTransform: "uppercase", letterSpacing: "0.05em" }}>최종 심사의견</div>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: result.gradeColor, marginTop: 2 }}>
+                      {DECISION_LABEL[result.gradeBand]}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "#332818", marginTop: 6, lineHeight: 1.6 }}>
+                      {buildDecisionReason(result)}
                     </div>
                   </div>
 
@@ -1190,6 +1305,13 @@ export default function PFReportMVP() {
                   ) : topRiskItems(result.scoreModel, 99).map((item) => (
                     <ScoreItemRow key={item.key} item={item} />
                   ))}
+
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>스트레스 테스트 요약 비교</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    금리·공사비·분양률 스트레스를 시나리오별로 한 번에 비교합니다(아래 개별 스트레스 표 3종의 요약본).
+                    각 시나리오의 등급은 재무 4항목만 재계산해 기존 채점 로직에 그대로 대입한 값입니다.
+                  </div>
+                  <StressComparisonTable rows={buildStressComparison(form, result, comps.length)} />
 
                   <StressTestTable
                     title="분양률 스트레스 테스트"

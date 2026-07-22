@@ -26,7 +26,7 @@ export const ZONE_FAR = {
 };
 
 /** 연환산 All-in 조달비용률(%) = 대출금리 + 취급수수료를 대출기간(년)으로 환산 */
-function allInCostRate(interestRate, originationFee, loanTermMonths) {
+export function allInCostRate(interestRate, originationFee, loanTermMonths) {
   const years = loanTermMonths / 12;
   return interestRate + originationFee / years;
 }
