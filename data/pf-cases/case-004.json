@@ -1,0 +1,32 @@
+{
+  "id": "case-004",
+  "caseName": "더미 예시: 지방 신축개발, 시행사 부도 시나리오",
+  "status": "dummy",
+  "source": "실제 사례 아님 — 부실(부도) 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "input": {
+    "address": "충청남도 서산시 000",
+    "area": "3000",
+    "zone": "일반상업지역",
+    "projectType": "신축개발",
+    "lender": "자산운용사",
+    "developerTrack": "신설·실적 부족",
+    "contractorGrade": "소형",
+    "locationTier": "수요 부족 지역",
+    "supplyCompetition": "공급 과다",
+    "creditEnhancement": "신용보강 없음/미확인",
+    "permitStage": "초기 단계",
+    "expectedSaleRate": "55",
+    "equityRatio": "8",
+    "interestRate": "13.0",
+    "originationFee": "2.5",
+    "loanTermMonths": "24"
+  },
+  "actual": {
+    "totalCost": null,
+    "salesRate": 12,
+    "outcome": "default",
+    "actualGrade": null,
+    "notes": "더미 데이터 — 초기 분양 실패로 시행사 자금난, PF 대출 부실화를 가정한 예시(고위험 케이스 검증용)."
+  },
+  "aiResult": null
+}

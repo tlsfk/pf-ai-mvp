@@ -1,0 +1,32 @@
+{
+  "id": "case-005",
+  "caseName": "더미 예시: 정보 미확정 초기 검토 시나리오",
+  "status": "dummy",
+  "source": "실제 사례 아님 — 정보부족(보수적 처리) 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "input": {
+    "address": "인천광역시 연수구 000",
+    "area": "1200",
+    "zone": "준주거지역",
+    "projectType": "신축개발",
+    "lender": "부동산신탁사",
+    "developerTrack": "미정(정보 없음)",
+    "contractorGrade": "미정(정보 없음)",
+    "locationTier": "일반 도시",
+    "supplyCompetition": "미확인(정보 없음)",
+    "creditEnhancement": "신용보강 없음/미확인",
+    "permitStage": "초기 단계",
+    "expectedSaleRate": "80",
+    "equityRatio": "20",
+    "interestRate": "9.0",
+    "originationFee": "1.0",
+    "loanTermMonths": "27"
+  },
+  "actual": {
+    "totalCost": null,
+    "salesRate": null,
+    "outcome": "unknown",
+    "actualGrade": null,
+    "notes": "더미 데이터 — 시행사/시공사 선정 전 1차 스크리닝 단계를 가정한 예시. 결과 미확정."
+  },
+  "aiResult": null
+}

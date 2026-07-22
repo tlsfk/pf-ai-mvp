@@ -1,0 +1,32 @@
+{
+  "id": "case-002",
+  "caseName": "더미 예시: 경기도 신축개발, 정상 진행 시나리오",
+  "status": "dummy",
+  "source": "실제 사례 아님 — 보통 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "input": {
+    "address": "경기도 수원시 영통구 000",
+    "area": "2200",
+    "zone": "준주거지역",
+    "projectType": "신축개발",
+    "lender": "저축은행",
+    "developerTrack": "보통",
+    "contractorGrade": "중견",
+    "locationTier": "일반 도시",
+    "supplyCompetition": "적정",
+    "creditEnhancement": "일부 보강(자금보충약정 등)",
+    "permitStage": "진행 중",
+    "expectedSaleRate": "78",
+    "equityRatio": "15",
+    "interestRate": "9.5",
+    "originationFee": "1.5",
+    "loanTermMonths": "30"
+  },
+  "actual": {
+    "totalCost": null,
+    "salesRate": 74,
+    "outcome": "success",
+    "actualGrade": null,
+    "notes": "더미 데이터 — 계획 대비 약간 낮은 분양률이지만 사업수지 내 흡수, 정상 준공을 가정한 예시."
+  },
+  "aiResult": null
+}

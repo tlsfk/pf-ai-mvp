@@ -1,0 +1,32 @@
+{
+  "id": "case-003",
+  "caseName": "더미 예시: 지방 재개발, 분양 지연 시나리오",
+  "status": "dummy",
+  "source": "실제 사례 아님 — 위험(지연) 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "input": {
+    "address": "전라남도 목포시 000",
+    "area": "1800",
+    "zone": "제2종일반주거지역",
+    "projectType": "재개발",
+    "lender": "캐피탈사",
+    "developerTrack": "신설·실적 부족",
+    "contractorGrade": "중견",
+    "locationTier": "일반 도시",
+    "supplyCompetition": "공급 과다",
+    "creditEnhancement": "신용보강 없음/미확인",
+    "permitStage": "진행 중",
+    "expectedSaleRate": "65",
+    "equityRatio": "12",
+    "interestRate": "11.0",
+    "originationFee": "2.0",
+    "loanTermMonths": "36"
+  },
+  "actual": {
+    "totalCost": null,
+    "salesRate": 48,
+    "outcome": "delayed",
+    "actualGrade": null,
+    "notes": "더미 데이터 — 인근 공급 과잉으로 분양 흡수가 계획보다 늦어져 만기 연장을 가정한 예시."
+  },
+  "aiResult": null
+}

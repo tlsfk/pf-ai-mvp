@@ -1,0 +1,32 @@
+{
+  "id": "case-001",
+  "caseName": "더미 예시: 서울 핵심지 재건축, 완판 성공 시나리오",
+  "status": "dummy",
+  "source": "실제 사례 아님 — 우량 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "input": {
+    "address": "서울특별시 강남구 대치동 000",
+    "area": "1500",
+    "zone": "제3종일반주거지역",
+    "projectType": "재건축",
+    "lender": "부동산신탁사",
+    "developerTrack": "대형·실적 풍부",
+    "contractorGrade": "1군 건설사",
+    "locationTier": "서울 핵심·광역시 중심",
+    "supplyCompetition": "공급 부족(우호적)",
+    "creditEnhancement": "책임준공확약 있음",
+    "permitStage": "완료",
+    "expectedSaleRate": "95",
+    "equityRatio": "25",
+    "interestRate": "7.5",
+    "originationFee": "1.0",
+    "loanTermMonths": "24"
+  },
+  "actual": {
+    "totalCost": null,
+    "salesRate": 98,
+    "outcome": "success",
+    "actualGrade": null,
+    "notes": "더미 데이터 — 착공 후 청약 경쟁률 우수, 조기 완판을 가정한 예시 시나리오."
+  },
+  "aiResult": null
+}
