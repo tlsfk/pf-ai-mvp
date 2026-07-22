@@ -6,7 +6,7 @@ import { addressToLawdCd, recentDealYmd } from "../lib/lawdCodes";
 import {
   SCORING_MODEL_VERSION, TIER_COLOR, computeScoreModel, collateralTier,
   DEVELOPER_OPTIONS, CONTRACTOR_OPTIONS, LOCATION_OPTIONS, PERMIT_OPTIONS, SUPPLY_OPTIONS,
-  CREDIT_ENHANCEMENT_OPTIONS,
+  CREDIT_ENHANCEMENT_OPTIONS, topRiskItems, topStrengthItems,
 } from "../lib/scoring";
 import { saveAnalysisResult, buildAnalysisRecord } from "../lib/analysisStorage";
 
@@ -204,15 +204,6 @@ function runAnalysis(
   const dscr = (annualProfit / annualInterest).toFixed(2);
   const allInCost = allInCostRate(interestRate, originationFee, loanTermMonths);
 
-  const risks = [
-    { name: "인허가 리스크", score: 1 + Math.floor(seededRand(seed, 7) * 4) },
-    { name: "분양 흡수율 리스크", score: 1 + Math.floor(seededRand(seed, 8) * 4) },
-    { name: "금리·조달 리스크", score: 1 + Math.floor(seededRand(seed, 9) * 4) },
-    { name: "시공사 신용 리스크", score: 1 + Math.floor(seededRand(seed, 10) * 4) },
-    { name: "인근 공급과잉 리스크", score: 1 + Math.floor(seededRand(seed, 11) * 4) },
-  ];
-  const avgRisk = risks.reduce((a, r) => a + r.score, 0) / risks.length;
-
   // 채점 기준(카테고리 가중치·항목별 배점·컷오프)은 전부 ../lib/scoring 모듈 소관입니다.
   // 여기서는 그 모듈이 요구하는 입력값(ctx)만 조립합니다.
   const scoreModel = computeScoreModel({
@@ -235,7 +226,7 @@ function runAnalysis(
     landCost, constructionCost, generalCost, generalCostSource, financeCost, totalCost, totalCostSource,
     usingTotalCostOverride, loanAmount, equityAmount,
     salesRevenue, profit, margin, ltv, dscr, allInCost, interestRate, originationFee, loanTermMonths,
-    equityRatio, expectedSaleRate, risks, avgRisk, scoreModel, collateralRef,
+    equityRatio, expectedSaleRate, scoreModel, collateralRef,
     grade: scoreModel.grade, gradeNote: scoreModel.gradeNote,
     gradeColor: scoreModel.gradeColor, gradeBand: scoreModel.gradeBand, far, usingRealData,
     financialModelInvalid,
@@ -309,7 +300,6 @@ function costOverrunStressRow(result, overrunPct) {
   return { overrunPct, extraCost, totalCost, profit, margin, dscr };
 }
 
-const riskColor = (s) => (s <= 1 ? "#3E7C82" : s === 2 ? "#8A9A4A" : s === 3 ? "#C98A3E" : "#B4453B");
 
 /** 숫자 입력 필드가 비정상(비어있음/음수/문자 등)이면 그대로 두지 않고 사유를 모아 반환 —
  * 검증 없이 진행하면 리포트 전체 수치가 조용히 NaN으로 깨집니다. */
@@ -523,7 +513,6 @@ export default function PFReportMVP() {
         .paper h1, .paper h2 { font-family:'Source Serif 4', serif; }
         .metric-card { background:#F1EEE5; border:1px solid #C4BCA8; border-radius:3px; padding:11px 14px; }
         .metric-num { font-family:'IBM Plex Mono', monospace; font-size:17px; font-weight:500; color:#2A2718; }
-        .risk-row { display:grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 40px; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid #8F8770; }
         .stamp {
           position:absolute; top:40px; right:48px; min-width:74px; height:52px; padding:0 14px;
           border-radius:26px; border:3px solid; display:flex; align-items:center; justify-content:center;
@@ -834,19 +823,32 @@ export default function PFReportMVP() {
                     </div>
                   </div>
 
-                  <h2 style={{ fontSize: 15, marginBottom: 4, color: "#1F1C14" }}>주요 위험 요소 (상위 3개)</h2>
-                  <div style={{ fontSize: 11, color: "#9C5A2E", marginBottom: 8 }}>
-                    ⚠️ 아래 점수는 실제 사업 데이터가 아닌 예시용 무작위 값입니다 (근거 없음).
+                  <h2 style={{ fontSize: 15, marginBottom: 4, color: "#1F1C14" }}>핵심 리스크 TOP3</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    종합 평가항목(아래 1번 표) 중 배점 손실이 큰 순으로 자동 추출한 실제 채점 근거입니다.
                   </div>
-                  {[...result.risks].sort((a, b) => b.score - a.score).slice(0, 3).map((r) => (
-                    <div className="risk-row" key={r.name}>
-                      <div style={{ fontSize: 13 }}>{r.name}</div>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        {[1, 2, 3, 4].map((n) => (
-                          <div key={n} style={{ height: 8, flex: 1, borderRadius: 2, background: n <= r.score ? riskColor(r.score) : "#A89C82" }} />
-                        ))}
+                  {topRiskItems(result.scoreModel, 3).length === 0 ? (
+                    <div style={{ fontSize: 13, color: "#2F6F5E", marginBottom: 12 }}>모든 평가항목이 우수로 판정되어 특별한 리스크가 없습니다.</div>
+                  ) : topRiskItems(result.scoreModel, 3).map((item) => (
+                    <div key={item.key} style={{ padding: "7px 0", borderBottom: "1px solid #8F8770" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.categoryName} · {item.name}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[item.tier], whiteSpace: "nowrap" }}>{item.tier} ({item.score.toFixed(1)}/{item.maxPoints})</div>
                       </div>
-                      <div style={{ fontSize: 12, color: "#332818", textAlign: "right" }}>{r.score}/4</div>
+                      <div style={{ fontSize: 12, color: "#332818", marginTop: 2 }}>{item.reason}</div>
+                    </div>
+                  ))}
+
+                  <h2 style={{ fontSize: 15, marginTop: 18, marginBottom: 4, color: "#1F1C14" }}>핵심 강점 TOP2</h2>
+                  {topStrengthItems(result.scoreModel, 2).length === 0 ? (
+                    <div style={{ fontSize: 13, color: "#9C3B34", marginBottom: 12 }}>우수로 판정된 항목이 없습니다.</div>
+                  ) : topStrengthItems(result.scoreModel, 2).map((item) => (
+                    <div key={item.key} style={{ padding: "7px 0", borderBottom: "1px solid #8F8770" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.categoryName} · {item.name}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[item.tier], whiteSpace: "nowrap" }}>{item.tier} ({item.score.toFixed(1)}/{item.maxPoints})</div>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#332818", marginTop: 2 }}>{item.reason}</div>
                     </div>
                   ))}
 
@@ -1129,26 +1131,10 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>4. 리스크 매트릭스</h2>
-                  <div style={{ fontSize: 11, color: "#9C5A2E", marginBottom: 8 }}>
-                    ⚠️ 실제 사업 데이터 기반이 아닌 예시용 무작위 값입니다. 실 서비스에서는 인허가 이력, 분양 시장 데이터, 시공사 신용등급 등 실제 데이터로 대체되어야 합니다.
-                  </div>
-                  {result.risks.map((r) => (
-                    <div className="risk-row" key={r.name}>
-                      <div style={{ fontSize: 13 }}>{r.name}</div>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        {[1, 2, 3, 4].map((n) => (
-                          <div key={n} style={{ height: 8, flex: 1, borderRadius: 2, background: n <= r.score ? riskColor(r.score) : "#A89C82" }} />
-                        ))}
-                      </div>
-                      <div style={{ fontSize: 12, color: "#332818", textAlign: "right" }}>{r.score}/4</div>
-                    </div>
-                  ))}
-
-                  <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>5. AI 종합의견</h2>
+                  <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>4. AI 종합의견</h2>
                   <div style={{ background: "#F1EEE5", border: `1.5px solid ${result.gradeColor}`, borderRadius: 5, padding: "16px 18px" }}>
                     <p style={{ fontSize: 14, lineHeight: 1.8, color: "#1F1C14", margin: 0 }}>
-                      본 사업지는 사업수익률 {result.margin.toFixed(1)}%, 평균 리스크 스코어 {result.avgRisk.toFixed(1)}/4 수준으로 산출되어
+                      본 사업지는 사업수익률 {result.margin.toFixed(1)}% 수준으로 산출되어
                       종합 등급 {result.grade}({result.gradeNote})로 평가됩니다. (종합점수 {result.scoreModel.totalScore.toFixed(1)}/100)
                       {result.gradeBand === "high" && " 분양가 가정과 공사비 변동에 대한 민감도가 낮은 편으로, 표준 심사 절차 진행을 검토할 수 있습니다."}
                       {result.gradeBand === "good" && " 전반적으로 양호하나, 일부 리스크 항목에 대한 보완 자료(분양 흡수율 근거, 시공사 신용등급 등) 확보 후 심사를 진행하는 것을 권고합니다."}
@@ -1160,7 +1146,7 @@ export default function PFReportMVP() {
                   <div style={{ marginTop: 28, paddingTop: 14, borderTop: "1px solid #A89C82", fontSize: 11, color: "#3D3826", lineHeight: 1.6 }}>
                     <ShieldCheck size={12} style={{ verticalAlign: "-1px", marginRight: 4 }} />
                     {dataNote?.ok
-                      ? "실제 데이터 기반: 평당가(국토교통부 실거래가 API), 용적률(국토계획법 시행령·서울시 도시계획조례), 자기자본비율 20%↑ 기준(2011년 저축은행 사태 이후 금융당국 규제 기준). 근거 없는 가정치: 공사비·소프트비용 비율(임의 범위), 시행사·시공사·입지·분양률·대출조건 기본값, 리스크 매트릭스 점수(무작위). 실 서비스 전환 시 브이월드·건축물대장·실제 입력값으로 교체가 필요합니다."
+                      ? "실제 데이터 기반: 평당가(국토교통부 실거래가 API), 용적률(국토계획법 시행령·서울시 도시계획조례), 자기자본비율 20%↑ 기준(2011년 저축은행 사태 이후 금융당국 규제 기준). 근거 없는 가정치: 공사비·소프트비용 비율(임의 범위), 시행사·시공사·입지·분양률·대출조건 기본값. 실 서비스 전환 시 브이월드·건축물대장·실제 입력값으로 교체가 필요합니다."
                       : "실거래가 연동에 실패해 용도지역별 평당가도 가정치로 대체되었습니다. 이 리포트의 숫자 대부분이 근거 없는 임의값이니 참고용으로만 사용하세요. 실제 데이터 기반은 자기자본비율 20%↑ 기준(금융당국 규제)과 법정 용적률뿐입니다."}
                   </div>
                   </>

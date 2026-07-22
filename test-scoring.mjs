@@ -1,4 +1,4 @@
-import { computeScoreModel, collateralTier } from "./src/lib/scoring/index.js";
+import { computeScoreModel, collateralTier, topRiskItems, topStrengthItems } from "./src/lib/scoring/index.js";
 
 const ctx = {
   ltv: 65, dscr: "1.30", equityRatio: 20, allInCost: 10.5,
@@ -60,5 +60,15 @@ const badStabilityModel = computeScoreModel({
 });
 console.assert(badStabilityModel.gateApplied === "stability", "expected stability gate, got " + badStabilityModel.gateApplied);
 console.log("stability gate OK:", badStabilityModel.grade);
+
+// Executive Summary용 TOP 리스크/강점 추출: 배점 손실(deficit) 큰 순 / 배점 큰 순 정렬 검증
+const risks = topRiskItems(badFinanceModel, 3);
+console.assert(risks.every((i) => i.tier !== "우수"), "risk items must not be 우수 tier");
+for (let i = 1; i < risks.length; i++) {
+  console.assert(risks[i - 1].deficit >= risks[i].deficit, "risks not sorted by deficit desc");
+}
+const strengths = topStrengthItems(model, 2);
+console.assert(strengths.every((i) => i.tier === "우수"), "strength items must be 우수 tier");
+console.log("topRiskItems/topStrengthItems sorting OK");
 
 console.log("ALL CHECKS PASSED");

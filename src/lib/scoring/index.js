@@ -448,3 +448,25 @@ function capGrade(grade, maxGrade) {
   const capIdx = CREDIT_GRADES.findIndex((t) => t.grade === maxGrade);
   return gradeIdx < capIdx ? maxGrade : grade;
 }
+
+/**
+ * Executive Summary용 핵심 리스크 TOP n. "위험/보통" 항목 중 배점 손실분(maxPoints−score,
+ * "deficit")이 큰 순으로 뽑습니다 — 단순히 위험 tier만 볼 게 아니라 배점이 큰 항목(예: LTV 12점)이
+ * 배점이 작은 항목(예: 사업유형위험도 4점)보다 실제 등급에 미치는 영향이 크기 때문입니다.
+ */
+export function topRiskItems(scoreModel, n = 3) {
+  return scoreModel.categories
+    .flatMap((cat) => cat.items.map((i) => ({ ...i, categoryName: cat.name, deficit: i.maxPoints - i.score })))
+    .filter((i) => i.tier !== "우수")
+    .sort((a, b) => b.deficit - a.deficit)
+    .slice(0, n);
+}
+
+/** Executive Summary용 핵심 강점 TOP n. "우수" 판정 항목 중 배점(maxPoints)이 큰 순으로 뽑습니다. */
+export function topStrengthItems(scoreModel, n = 2) {
+  return scoreModel.categories
+    .flatMap((cat) => cat.items.map((i) => ({ ...i, categoryName: cat.name })))
+    .filter((i) => i.tier === "우수")
+    .sort((a, b) => b.maxPoints - a.maxPoints)
+    .slice(0, n);
+}
