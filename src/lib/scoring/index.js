@@ -8,7 +8,7 @@
  * 자체 설계값입니다. 실제 금융사 기준에 맞게 이 파일만 교체하면 됩니다.
  */
 
-export const SCORING_MODEL_VERSION = "1.3.0";
+export const SCORING_MODEL_VERSION = "1.4.0";
 
 export const TIER_SCORE = { 우수: 100, 보통: 50, 위험: 0 };
 export const TIER_COLOR = { 우수: "#2F6F5E", 보통: "#8A7A3A", 위험: "#9C3B34" };
@@ -407,8 +407,13 @@ export function computeScoreModel(ctx) {
 
   // ---- 하드 게이트: 카테고리 하나가 완전히 무너지면 나머지 카테고리 만점으로도 못 가리게 등급 상한 적용 ----
   // 가중합산 방식의 구조적 한계(검증 케이스 F/G) 대응: 금융 4항목 중 2개 이상 위험, 또는
-  // 사업 진행 3항목(인허가·시행사·시공사, 이들의 합성값인 progressRisk는 제외)이 전부 위험이면
+  // 사업 진행 3항목(인허가·시행사·시공사, 이들의 합성값인 progressRisk는 제외) 중 2개 이상 위험이면
   // 총점이 아무리 높아도 등급을 BB(투기적) 이하로 캡한다.
+  // v1.4.0: 사업안정성 게이트를 "3개 전부 위험"에서 "2개 이상 위험"으로 완화(금융 게이트와 기준 통일).
+  // PF 사례 검증(data/pf-cases)으로 실제 부도 사례 6건을 돌려본 결과 5건이 등급 BBB대로 나와
+  // 실제결과(default)와 불일치했는데, 원인이 이 조건이었습니다 — 실제 부도는 대부분 "인허가 진행
+  // 중"(착공 이후) 단계에서 발생해 인허가 항목 자체는 위험으로 안 잡히고, 시행사·시공사 2개만
+  // 위험이면 예전 기준(3개 전부)으로는 게이트가 발동하지 않았습니다.
   let gateApplied = null;
   if (!isDefault) {
     const financialItems = categories.find((c) => c.key === "financial").items;
@@ -417,13 +422,13 @@ export function computeScoreModel(ctx) {
     // "실행 3항목"이 아니므로 이 게이트 판단에서 제외합니다.
     const stabilityCoreItems = categories.find((c) => c.key === "stability").items
       .filter((i) => i.key === "permitStage" || i.key === "developerTrack" || i.key === "contractorGrade");
-    const allStabilityCoreRisky = stabilityCoreItems.every((i) => i.tier === "위험");
+    const stabilityRiskCount = stabilityCoreItems.filter((i) => i.tier === "위험").length;
 
     if (financialRiskCount >= 2) {
       grade = capGrade(grade, "BB");
       gateApplied = "financial";
     }
-    if (allStabilityCoreRisky) {
+    if (stabilityRiskCount >= 2) {
       grade = capGrade(grade, "BB");
       gateApplied = gateApplied ? "both" : "stability";
     }

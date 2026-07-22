@@ -53,13 +53,30 @@ console.assert(badFinanceModel.gateApplied === "financial", "expected financial 
 console.assert(["BB+", "BB", "BB-", "B+", "B", "B-", "CCC", "CC", "C"].includes(badFinanceModel.grade), "expected grade capped at BB or below, got " + badFinanceModel.grade);
 console.log("financial gate OK:", badFinanceModel.grade);
 
-// 하드 게이트: 인허가·시행사·시공사 전부 위험이면(사업진행리스크 자체는 제외) BB 이하로 캡
+// 하드 게이트: 인허가·시행사·시공사 3개 전부 위험이면(사업진행리스크 자체는 제외) BB 이하로 캡
 const badStabilityModel = computeScoreModel({
   ...ctx, permitStage: "초기 단계", developerTrack: "미정(정보 없음)", developerTrackIsDefault: true,
   contractorGrade: "소형",
 });
 console.assert(badStabilityModel.gateApplied === "stability", "expected stability gate, got " + badStabilityModel.gateApplied);
-console.log("stability gate OK:", badStabilityModel.grade);
+console.log("stability gate OK (3/3 risky):", badStabilityModel.grade);
+
+// v1.4.0: 3개 중 2개만 위험이어도(인허가는 "진행 중"으로 정상) 게이트가 발동해야 함 —
+// 실제 부도 사례 대부분이 착공 이후(인허가 진행 중)에 발생한다는 PF 사례 검증 결과 반영.
+const twoOfThreeStabilityModel = computeScoreModel({
+  ...ctx, permitStage: "진행 중", developerTrack: "미정(정보 없음)", developerTrackIsDefault: true,
+  contractorGrade: "소형",
+});
+console.assert(twoOfThreeStabilityModel.gateApplied === "stability", "expected stability gate for 2/3 risky, got " + twoOfThreeStabilityModel.gateApplied);
+console.log("stability gate OK (2/3 risky, permit 정상):", twoOfThreeStabilityModel.grade);
+
+// 1개만 위험이면 게이트가 발동하면 안 됨(과도한 하드 게이트 방지)
+const oneOfThreeStabilityModel = computeScoreModel({
+  ...ctx, permitStage: "진행 중", developerTrack: "미정(정보 없음)", developerTrackIsDefault: true,
+  contractorGrade: "1군 건설사",
+});
+console.assert(oneOfThreeStabilityModel.gateApplied === null, "expected no gate for 1/3 risky, got " + oneOfThreeStabilityModel.gateApplied);
+console.log("no gate for 1/3 risky: OK");
 
 // Executive Summary용 TOP 리스크/강점 추출: 배점 손실(deficit) 큰 순 / 배점 큰 순 정렬 검증
 const risks = topRiskItems(badFinanceModel, 3);
