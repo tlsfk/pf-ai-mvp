@@ -43,6 +43,7 @@ export const PLACEHOLDER_DEFAULTS = {
   expectedSaleRate: 80,
   interestRate: 9.0,
   originationFee: 1.0,
+  equityRatio: 20,
 };
 
 // 공사비·소프트비용 미입력 시 사용하는 고정 기본값(랜덤 아님, 근거 없는 참고용 수치임을 명시)
@@ -150,7 +151,7 @@ export function runAnalysis(
   // 채점 기준(카테고리 가중치·항목별 배점·컷오프)은 전부 ../lib/scoring 모듈 소관입니다.
   // 여기서는 그 모듈이 요구하는 입력값(ctx)만 조립합니다.
   const scoreModel = computeScoreModel({
-    ltv, dscr, equityRatio, allInCost,
+    ltv, dscr, equityRatio, equityRatioIsDefault: equityRatio === PLACEHOLDER_DEFAULTS.equityRatio, allInCost,
     expectedSaleRate, expectedSaleRateIsDefault: Number(expectedSaleRate) === PLACEHOLDER_DEFAULTS.expectedSaleRate,
     usingRealData, compsCount,
     locationTier, locationTierIsDefault: locationTier === PLACEHOLDER_DEFAULTS.locationTier,

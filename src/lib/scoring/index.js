@@ -8,7 +8,7 @@
  * 자체 설계값입니다. 실제 금융사 기준에 맞게 이 파일만 교체하면 됩니다.
  */
 
-export const SCORING_MODEL_VERSION = "1.4.0";
+export const SCORING_MODEL_VERSION = "1.4.1";
 
 export const TIER_SCORE = { 우수: 100, 보통: 50, 위험: 0 };
 export const TIER_COLOR = { 우수: "#2F6F5E", 보통: "#8A7A3A", 위험: "#9C3B34" };
@@ -139,7 +139,8 @@ function reasonDSCR(dscr, tier) {
   if (tier === "보통") return `DSCR ${d.toFixed(2)}배로 1.0~1.5배 — 상환 여력이 보통 수준입니다.`;
   return `DSCR ${d.toFixed(2)}배로 1.0배 미만 — 이자상환 여력이 부족한 위험 수준입니다.`;
 }
-function reasonEquity(equityRatio, tier) {
+function reasonEquity(equityRatio, tier, isDefault) {
+  if (isDefault) return `자기자본비율이 입력되지 않아 기본값(${equityRatio}%)을 그대로 쓴 상태입니다. 실제 출자 확정 전이라 보수적으로 위험 처리했습니다.`;
   if (tier === "우수") return `자기자본비율 ${equityRatio}%로 일반적인 PF 구조 대비 안정적인 수준입니다.`;
   if (tier === "보통") return `자기자본비율 ${equityRatio}%로 최소 기준(10%)은 넘었으나 여유는 크지 않습니다.`;
   return `자기자본비율 ${equityRatio}%로 10% 미만 — 저축은행권 등에서 통상 부적격으로 보는 수준입니다.`;
@@ -224,10 +225,16 @@ const CATEGORIES = [
         },
       },
       {
+        // v1.4.0: 미입력(기본값 그대로) 시 "우수" 컷오프(20%)와 우연히 같아 항상 만점으로
+        // 잡히던 문제를 수정 — 다른 정성 항목(시행사·시공사 등)과 동일하게 미확정이면 위험 처리.
         key: "equityRatio", name: "자기자본비율", maxPoints: 10, type: "정량",
         build: (ctx) => {
-          const tier = equityTier(ctx.equityRatio);
-          return { tier, detail: `${ctx.equityRatio}%`, source: "사용자 입력값", reason: reasonEquity(ctx.equityRatio, tier) };
+          const tier = ctx.equityRatioIsDefault ? "위험" : equityTier(ctx.equityRatio);
+          return {
+            tier, detail: `${ctx.equityRatio}%`,
+            source: ctx.equityRatioIsDefault ? "기본값(미입력)" : "사용자 입력값",
+            reason: reasonEquity(ctx.equityRatio, tier, ctx.equityRatioIsDefault),
+          };
         },
       },
       {

@@ -278,7 +278,6 @@ export default function PFReportMVP() {
     projectType: "재건축",
     lender: "부동산신탁사",
     permitStage: "진행 중",
-    equityRatio: "20",
     loanTermMonths: "27",
     totalCostOverride: "", // 총사업비 직접입력(만원) - 비우면 자동계산
     landCostOverride: "", // 토지매입비 직접입력(만원, 총액) - 비우면 평당 토지가 기반 자동계산
