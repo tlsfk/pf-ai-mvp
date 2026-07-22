@@ -32,6 +32,18 @@ const DECISION_BAND_REASON = {
   weak: "고위험 등급 구간으로, 사업 구조 전반에 대한 재검토가 필요합니다.",
   default: "사업수지 또는 리스크 스코어가 기준선에 크게 미달해 부결 또는 전면 재구조화가 필요합니다.",
 };
+/** 하드게이트가 걸린 원인이 "실제로 나쁜 입력값"이 아니라 "고급설정 미입력(기본값)"뿐인지 판단.
+ * 새 판정 로직이 아니라 각 항목에 이미 있는 source("기본값(미입력)" vs "사용자 입력값")를 재활용. */
+function gateIsOnlyDueToDefaults(result) {
+  if (!result.scoreModel.gateApplied) return false;
+  const stabilityCore = result.scoreModel.categories.find((c) => c.key === "stability").items
+    .filter((i) => i.key === "developerTrack" || i.key === "contractorGrade" || i.key === "creditEnhancement");
+  const financialItems = result.scoreModel.categories.find((c) => c.key === "financial").items;
+  const riskyItems = [...stabilityCore, ...financialItems].filter((i) => i.tier === "위험");
+  if (riskyItems.length === 0) return false;
+  return riskyItems.every((i) => i.source.includes("기본값"));
+}
+
 const DECISION_GATE_REASON = {
   financial: "금융 안정성 항목 중 2개 이상이 위험 등급으로 판정되어 등급이 제한되었습니다.",
   stability: "인허가·시행사·시공사 항목 중 2개 이상이 위험 등급으로 판정되어 등급이 제한되었습니다.",
@@ -1053,6 +1065,10 @@ export default function PFReportMVP() {
                         : result.scoreModel.gateApplied === "stability" ? "인허가·시행사·시공사 항목 중 2개 이상이 위험 등급으로 판정되어"
                         : "금융 안정성 항목 다수와 인허가·시행사·시공사 항목이 모두 위험 등급으로 판정되어"
                       } 등급을 BB(투기적) 이하로 제한했습니다. 다른 항목 점수가 아무리 좋아도 이 리스크는 상쇄되지 않습니다.
+                      {gateIsOnlyDueToDefaults(result) && (
+                        <><br /><br />※ 이 제한은 실제로 나쁜 값이 입력돼서가 아니라, <b>시행사·시공사·신용보강 등 고급설정 항목을 입력하지 않아</b> 보수적으로
+                        위험 처리된 결과입니다. 좌측 &ldquo;고급 설정&rdquo;에서 실제 값을 입력하면 등급이 달라질 수 있습니다.</>
+                      )}
                     </div>
                   )}
 
@@ -1318,6 +1334,7 @@ export default function PFReportMVP() {
                         : result.scoreModel.gateApplied === "stability" ? "인허가·시행사·시공사 항목 중 2개 이상이 위험 등급으로 판정되어"
                         : "금융 안정성 항목 다수와 인허가·시행사·시공사 항목이 모두 위험 등급으로 판정되어"
                       } 등급이 BB(투기적) 이하로 제한되었습니다.
+                      {gateIsOnlyDueToDefaults(result) && " (고급설정 미입력에 따른 보수적 처리 — 실제 값을 입력하면 달라질 수 있음)"}
                     </div>
                   )}
                   {topRiskItems(result.scoreModel, 99).length === 0 ? (
