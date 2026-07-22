@@ -8,7 +8,7 @@
  * 자체 설계값입니다. 실제 금융사 기준에 맞게 이 파일만 교체하면 됩니다.
  */
 
-export const SCORING_MODEL_VERSION = "1.2.0";
+export const SCORING_MODEL_VERSION = "1.3.0";
 
 export const TIER_SCORE = { 우수: 100, 보통: 50, 위험: 0 };
 export const TIER_COLOR = { 우수: "#2F6F5E", 보통: "#8A7A3A", 위험: "#9C3B34" };
@@ -256,8 +256,11 @@ const CATEGORIES = [
         },
       },
       {
-        // v1.1.0 대비 6→9점 (아래 "삭제된 항목" 참고).
-        key: "comps", name: "주변 실거래 비교", maxPoints: 9, type: "정량",
+        // v1.2.0 대비 9→6점. comps는 "비교사례가 몇 건 확보됐는가"라는 데이터 가용성 지표일
+        // 뿐 사업성 지표가 아닌데, v1.2.0에서 9점까지 늘면서 "완전히 동일한 딜인데 실거래가
+        // 조회 가능 지역이냐 아니냐만으로 AAA/AA+가 갈리는"(실행 검증으로 확인된) 과대평가가
+        // 커졌습니다. 확보한 3점은 실제 시장 리스크 신호인 supplyCompetition으로 재배정.
+        key: "comps", name: "주변 실거래 비교", maxPoints: 6, type: "정량",
         build: (ctx) => {
           const tier = compsTier(ctx.usingRealData, ctx.compsCount);
           return {
@@ -266,12 +269,9 @@ const CATEGORIES = [
           };
         },
       },
-      // 삭제된 항목: "예상 분양성"(6점, v1.1.0) — locationTier·expectedSaleRate를 그대로 재사용해
-      // "예상 분양률"·"주소기반 지역분석"과 이중계상되던 항목. 6점을 expectedSaleRate(+2)·
-      // comps(+3)·supplyCompetition(+1)에 재배분.
       {
-        // v1.1.0 대비 4→5점.
-        key: "supplyCompetition", name: "공급 경쟁", maxPoints: 5, type: "정성",
+        // v1.2.0 대비 5→8점 (comps 축소분 재배정, 위 참고).
+        key: "supplyCompetition", name: "공급 경쟁", maxPoints: 8, type: "정성",
         build: (ctx) => {
           const tier = optionTier(SUPPLY_OPTIONS, ctx.supplyCompetition);
           return {
