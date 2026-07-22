@@ -728,6 +728,16 @@ export default function PFReportMVP() {
                     </div>
                   )}
 
+                  {result.scoreModel.gateApplied && (
+                    <div style={{ fontSize: 12, color: "#9C5A2E", background: "#F3E9E4", border: "1px solid #9C5A2E", borderRadius: 4, padding: "8px 12px", marginTop: 10, lineHeight: 1.6 }}>
+                      ⚠ 종합점수는 {result.scoreModel.totalScore.toFixed(1)}점이지만, {
+                        result.scoreModel.gateApplied === "financial" ? "금융 안정성 항목 중 2개 이상이 위험 등급으로 판정되어"
+                        : result.scoreModel.gateApplied === "stability" ? "인허가·시행사·시공사 항목이 전부 위험 등급으로 판정되어"
+                        : "금융 안정성 항목 다수와 인허가·시행사·시공사 항목이 모두 위험 등급으로 판정되어"
+                      } 등급을 BB(투기적) 이하로 제한했습니다. 다른 항목 점수가 아무리 좋아도 이 리스크는 상쇄되지 않습니다.
+                    </div>
+                  )}
+
                   {/* ---- 요약 미리보기 (항상 표시) ---- */}
                   <h2 style={{ fontSize: 15, marginTop: 24, marginBottom: 10, color: "#1F1C14" }}>핵심 지표</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>

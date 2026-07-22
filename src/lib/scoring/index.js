@@ -419,6 +419,28 @@ export function computeScoreModel(ctx) {
     const tier = CREDIT_GRADES.find((t) => totalScore >= t.min);
     grade = tier ? tier.grade : "D";
   }
+
+  // ---- 하드 게이트: 카테고리 하나가 완전히 무너지면 나머지 카테고리 만점으로도 못 가리게 등급 상한 적용 ----
+  // 가중합산 방식의 구조적 한계(검증 케이스 F/G) 대응: 금융 4항목 중 2개 이상 위험, 또는
+  // 사업 진행 3항목(인허가·시행사·시공사, 이들의 합성값인 progressRisk는 제외)이 전부 위험이면
+  // 총점이 아무리 높아도 등급을 BB(투기적) 이하로 캡한다.
+  let gateApplied = null;
+  if (!isDefault) {
+    const financialItems = categories.find((c) => c.key === "financial").items;
+    const financialRiskCount = financialItems.filter((i) => i.tier === "위험").length;
+    const stabilityCoreItems = categories.find((c) => c.key === "stability").items
+      .filter((i) => i.key !== "progressRisk");
+    const allStabilityCoreRisky = stabilityCoreItems.every((i) => i.tier === "위험");
+
+    if (financialRiskCount >= 2) {
+      grade = capGrade(grade, "BB");
+      gateApplied = "financial";
+    }
+    if (allStabilityCoreRisky) {
+      grade = capGrade(grade, "BB");
+      gateApplied = gateApplied ? "both" : "stability";
+    }
+  }
   const gradeInfo = GRADE_META[grade];
 
   return {
@@ -429,5 +451,13 @@ export function computeScoreModel(ctx) {
     gradeNote: gradeInfo.note,
     gradeColor: gradeInfo.color,
     gradeBand: gradeInfo.band,
+    gateApplied,
   };
+}
+
+/** 등급을 maxGrade보다 좋게(=더 높게) 나오지 못하도록 내리누른다. 이미 maxGrade보다 나쁘면 그대로 둔다. */
+function capGrade(grade, maxGrade) {
+  const gradeIdx = CREDIT_GRADES.findIndex((t) => t.grade === grade);
+  const capIdx = CREDIT_GRADES.findIndex((t) => t.grade === maxGrade);
+  return gradeIdx < capIdx ? maxGrade : grade;
 }
