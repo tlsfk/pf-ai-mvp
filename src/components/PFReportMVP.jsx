@@ -622,11 +622,11 @@ export default function PFReportMVP() {
         }
         .runbtn:disabled { opacity:0.55; cursor:default; }
         .paper {
-          background:#FAF8F3; color:#22201B; border-radius:2px; padding:44px 48px;
-          box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55);
+          background:#FAF8F3; color:#22201B; border-radius:4px; padding:36px 40px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.18);
         }
         .paper h1, .paper h2 { font-family:'Source Serif 4', serif; }
-        .metric-card { background:#F1EEE5; border:1px solid #C4BCA8; border-radius:3px; padding:11px 14px; }
+        .metric-card { background:#F1EEE5; border:1px solid #C4BCA8; border-radius:4px; padding:10px 14px; }
         .metric-num { font-family:'IBM Plex Mono', monospace; font-size:17px; font-weight:500; color:#2A2718; }
         .stamp {
           position:absolute; top:40px; right:48px; min-width:74px; height:52px; padding:0 14px;
@@ -1031,14 +1031,15 @@ export default function PFReportMVP() {
                     {form.zone} · {form.projectType} · 심사 대상: {form.lender} · 발행일 {new Date().toLocaleDateString("ko-KR")}
                   </div>
 
+                  {/* ① 종합등급: 위 뱃지(cover-page)에서 이미 표시됨 */}
                   <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 13, background: "#EFEBDD", display: "inline-block", padding: "4px 10px", borderRadius: 3, color: result.gradeColor, fontWeight: 600 }}>
+                    <div style={{ fontSize: 13, background: "#EFEBDD", display: "inline-block", padding: "4px 10px", borderRadius: 4, color: result.gradeColor, fontWeight: 600 }}>
                       종합 등급 {result.grade} — {result.gradeNote}
                     </div>
                     <div style={{
-                      fontSize: 12, display: "inline-block", padding: "4px 10px", borderRadius: 3, fontWeight: 600,
-                      background: dataNote?.ok ? "#E4EEE9" : "#F3E9E4",
-                      color: dataNote?.ok ? "#2F6F5E" : "#9C5A2E",
+                      fontSize: 12, display: "inline-block", padding: "4px 10px", borderRadius: 4, fontWeight: 600,
+                      background: dataNote?.ok ? "#E4EBF3" : "#F3E9E4",
+                      color: dataNote?.ok ? "#3B6EA5" : "#9C5A2E",
                     }}>
                       {dataNote?.ok ? "국토부 실거래가 반영" : "가정치 기반 추정(실거래가 미반영)"}
                     </div>
@@ -1065,9 +1066,39 @@ export default function PFReportMVP() {
                     </div>
                   )}
 
-                  {/* ---- 요약 미리보기 (항상 표시) ---- */}
-                  <h2 style={{ fontSize: 15, marginTop: 24, marginBottom: 10, color: "#1F1C14" }}>핵심 지표</h2>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+                  {/* ② 심사의견 */}
+                  <div style={{ marginTop: 14, padding: "12px 14px", background: "#F1EEE5", borderRadius: 4, border: `1.5px solid ${result.gradeColor}` }}>
+                    <div style={{ fontSize: 11, color: "#332818", textTransform: "uppercase", letterSpacing: "0.05em" }}>최종 심사의견</div>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: result.gradeColor, marginTop: 2 }}>
+                      {DECISION_LABEL[result.gradeBand]}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "#332818", marginTop: 6, lineHeight: 1.6 }}>
+                      {buildDecisionReason(result)}
+                    </div>
+                  </div>
+
+                  {/* ③ 핵심 리스크 */}
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 4, color: "#1F1C14", borderTop: "1px solid #DCD5C4", paddingTop: 14 }}>핵심 리스크</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    종합 평가항목(아래 1번 표) 중 배점 손실이 큰 순으로 자동 추출한 실제 채점 근거입니다.
+                  </div>
+                  {topRiskItems(result.scoreModel, 3).length === 0 ? (
+                    <div style={{ fontSize: 13, color: "#2F6F5E", marginBottom: 12 }}>모든 평가항목이 우수로 판정되어 특별한 리스크가 없습니다.</div>
+                  ) : topRiskItems(result.scoreModel, 3).map((item) => (
+                    <ScoreItemRow key={item.key} item={item} />
+                  ))}
+
+                  {/* ④ 핵심 강점 */}
+                  <h2 style={{ fontSize: 15, marginTop: 16, marginBottom: 4, color: "#1F1C14" }}>핵심 강점</h2>
+                  {topStrengthItems(result.scoreModel, 2).length === 0 ? (
+                    <div style={{ fontSize: 13, color: "#9C3B34", marginBottom: 12 }}>우수로 판정된 항목이 없습니다.</div>
+                  ) : topStrengthItems(result.scoreModel, 2).map((item) => (
+                    <ScoreItemRow key={item.key} item={item} />
+                  ))}
+
+                  {/* ⑤ 핵심 지표 */}
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 10, color: "#1F1C14", borderTop: "1px solid #DCD5C4", paddingTop: 14 }}>핵심 지표</h2>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
                     {result.scoreModel.categories[0].items.slice(0, 3).map((item) => (
                       <div className="metric-card" key={item.key}>
                         <div style={{ fontSize: 11, color: "#332818" }}>{item.name}</div>
@@ -1082,43 +1113,17 @@ export default function PFReportMVP() {
                     </div>
                   </div>
 
-                  <h2 style={{ fontSize: 15, marginBottom: 4, color: "#1F1C14" }}>핵심 리스크</h2>
-                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                    종합 평가항목(아래 1번 표) 중 배점 손실이 큰 순으로 자동 추출한 실제 채점 근거입니다.
-                  </div>
-                  {topRiskItems(result.scoreModel, 3).length === 0 ? (
-                    <div style={{ fontSize: 13, color: "#2F6F5E", marginBottom: 12 }}>모든 평가항목이 우수로 판정되어 특별한 리스크가 없습니다.</div>
-                  ) : topRiskItems(result.scoreModel, 3).map((item) => (
-                    <ScoreItemRow key={item.key} item={item} />
-                  ))}
-
-                  <h2 style={{ fontSize: 15, marginTop: 18, marginBottom: 4, color: "#1F1C14" }}>핵심 강점</h2>
-                  {topStrengthItems(result.scoreModel, 2).length === 0 ? (
-                    <div style={{ fontSize: 13, color: "#9C3B34", marginBottom: 12 }}>우수로 판정된 항목이 없습니다.</div>
-                  ) : topStrengthItems(result.scoreModel, 2).map((item) => (
-                    <ScoreItemRow key={item.key} item={item} />
-                  ))}
-
-                  <div style={{ marginTop: 16, padding: "12px 14px", background: "#F1EEE5", borderRadius: 4, border: `1.5px solid ${result.gradeColor}` }}>
-                    <div style={{ fontSize: 11, color: "#332818", textTransform: "uppercase", letterSpacing: "0.05em" }}>최종 심사의견</div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: result.gradeColor, marginTop: 2 }}>
-                      {DECISION_LABEL[result.gradeBand]}
-                    </div>
-                    <div style={{ fontSize: 12.5, color: "#332818", marginTop: 6, lineHeight: 1.6 }}>
-                      {buildDecisionReason(result)}
-                    </div>
-                  </div>
-
+                  {/* ⑥ 상세 분석 */}
                   {expanded && (
                   <>
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 8, color: "#1F1C14" }}>Executive Summary</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 8, color: "#1F1C14" }}>Executive Summary</h2>
                   <ul style={{ fontSize: 13, lineHeight: 1.8, color: "#1F1C14", paddingLeft: 18, margin: 0 }}>
                     <li>본건은 {form.address} ‘{form.projectType} 사업’의 PF 대출을 요청하는 건으로, 대출금은 토지비·공사비·금융비 등의 용도로 사용될 예정임.</li>
                     <li>대출조건은 대출금리 {result.interestRate}%, 취급수수료 {result.originationFee}%(All-in cost {result.allInCost.toFixed(1)}%), 대출기간 {result.loanTermMonths}개월, LTV {result.ltv.toFixed(1)}%, Exit 분양률 {result.expectedSaleRate}% 가정.</li>
                     <li>세전이익 {fmt(result.profit)}만원(세전이익률 {result.margin.toFixed(1)}%) 수준으로 산출되어 종합 등급 {result.grade}({result.gradeNote})로 평가됨.</li>
                   </ul>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>1. 사업 개요</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 12, color: "#1F1C14" }}>1. 사업 개요</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 4 }}>출처: 대지면적(사용자 입력) · 용적률(국토계획법 시행령·서울시 도시계획조례)</div>
                   <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse", marginBottom: 4 }}>
                     <tbody>
@@ -1128,7 +1133,7 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>2. 시장성 분석</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 4, color: "#1F1C14" }}>2. 시장성 분석</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
                     입지·공급경쟁·주변 실거래·예상 분양률(아래 5번 종합 평가항목 표에서 이미 채점된 값)을 시장 관점으로 모아본 것입니다. 별도 시장 데이터를 새로 수집하지 않았습니다.
                   </div>
@@ -1182,7 +1187,7 @@ export default function PFReportMVP() {
                     </>
                   )}
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>3. 금융 개요</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 12, color: "#1F1C14" }}>3. 금융 개요</h2>
                   <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse", marginBottom: 4 }}>
                     <tbody>
                       <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818", width: 140 }}>차주사(시행사)</td><td style={{ padding: "6px 4px" }}>[T.B.D] — 실적: {form.developerTrack}</td></tr>
@@ -1238,7 +1243,7 @@ export default function PFReportMVP() {
                     실제로는 토지비 선투입 등 조달 순서에 따라 배분이 달라질 수 있습니다.
                   </div>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>4. 사업성 지표</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 12, color: "#1F1C14" }}>4. 사업성 지표</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 4 }}>
                     출처: 총사업비({result.totalCostSource}) · 분양수입 평당가({dataNote?.ok ? "국토교통부 실거래가 API" : "가정치(실거래가 조회 실패)"}) ·
                     토지매입비({result.landCostSource}) · 공사비({result.constructionCostSource}) · 소프트비용({result.generalCostSource}) · 대출조건(사용자 입력 또는 기본값)
@@ -1259,7 +1264,7 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 4, color: "#1F1C14" }}>
                     5. 종합 평가항목 (종합점수 {result.scoreModel.totalScore.toFixed(1)}/100 — 금융안정성40·사업성30·사업안정성20·입지경쟁력10 가중합산)
                   </h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
@@ -1309,7 +1314,7 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>6. 리스크 분석</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 4, color: "#1F1C14" }}>6. 리스크 분석</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
                     5번 종합 평가항목 표에서 “위험”·“보통”으로 판정된 항목 전체를 배점 손실이 큰 순으로 모은 것입니다(새 데이터 없이 기존 채점 결과 재구성).
                   </div>
@@ -1331,7 +1336,7 @@ export default function PFReportMVP() {
                     <ScoreItemRow key={item.key} item={item} />
                   ))}
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>스트레스 테스트 요약 비교</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 20, marginBottom: 4, color: "#1F1C14" }}>스트레스 테스트 요약 비교</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
                     금리·공사비·분양률 스트레스를 시나리오별로 한 번에 비교합니다(아래 개별 스트레스 표 3종의 요약본).
                     각 시나리오의 등급은 재무 4항목만 재계산해 기존 채점 로직에 그대로 대입한 값입니다.
@@ -1397,7 +1402,7 @@ export default function PFReportMVP() {
                     </p>
                   </div>
 
-                  <div style={{ marginTop: 28, paddingTop: 14, borderTop: "1px solid #A89C82", fontSize: 11, color: "#3D3826", lineHeight: 1.6 }}>
+                  <div style={{ marginTop: 20, paddingTop: 14, borderTop: "1px solid #A89C82", fontSize: 11, color: "#3D3826", lineHeight: 1.6 }}>
                     <ShieldCheck size={12} style={{ verticalAlign: "-1px", marginRight: 4 }} />
                     {dataNote?.ok
                       ? "실제 데이터 기반: 평당가(국토교통부 실거래가 API), 용적률(국토계획법 시행령·서울시 도시계획조례), 자기자본비율 20%↑ 기준(2011년 저축은행 사태 이후 금융당국 규제 기준). 근거 없는 가정치: 공사비·소프트비용 비율(임의 범위), 시행사·시공사·입지·분양률·대출조건 기본값. 실 서비스 전환 시 브이월드·건축물대장·실제 입력값으로 교체가 필요합니다."
