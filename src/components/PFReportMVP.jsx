@@ -983,6 +983,10 @@ export default function PFReportMVP() {
                 </div>
 
                 <div className="paper" style={{ position: "relative" }}>
+                  <div style={{ position: "absolute", top: 32, right: 40, textAlign: "right" }}>
+                    <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555555" }}>종합등급</div>
+                    <div style={{ fontFamily: "'Source Serif 4', serif", fontSize: 26, fontWeight: 700, color: "#000000" }}>{result.grade}</div>
+                  </div>
                   <div className="cover-page" style={{ textAlign: "center", padding: "60px 20px", borderBottom: "2px solid #CCCCCC", marginBottom: 32 }}>
                     <div style={{ fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", color: "#555555", marginBottom: 16 }}>
                       Real Estate Decision OS
