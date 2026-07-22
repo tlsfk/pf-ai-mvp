@@ -1,32 +1,32 @@
 {
   "id": "case-003",
-  "caseName": "더미 예시: 지방 재개발, 분양 지연 시나리오",
-  "status": "dummy",
-  "source": "실제 사례 아님 — 위험(지연) 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "caseName": "통영 더유엘 윈썸(통영더유엘지역주택조합) — 시공사 부도로 입주 장기 지연 사례",
+  "status": "verified",
+  "source": "통영시민신문 기사(http://www.tynewspaper.co.kr/news/articleView.html?idxno=31862, 2026-07-22 확인) — 주소(통영시 용남면 원평리 260번지 일대), 대지면적 36,640㎡, 규모(지하2층~지상24층 6개동 506세대), 시공사 신태양건설(부산 소재)이 약 230억원 PF 어음 문제로 기업회생 신청, 원래 입주예정 2022-11이었으나 공정률 85~86% 상태에서 공사 중단, HUG가 보증사고 후 조합통장 압류. HUG 사고사업장정보/이행사업장정보 오픈API 실시간 조회(2026-07-22, BUNO 024476)로 EXCU_PLN_NM '계속사업'(HUG가 대체 시행자를 지정해 공사를 이어가는 방식) 확정 처리를 재확인함 — 완전한 부도(환급)가 아니라 지연 후 계속 진행 중인 케이스. 정확한 용도지역·조합 PF 대출조건(금리·자기자본비율 등)·정확한 분양률은 공개자료로 확인 못해 앱의 기본 미정값을 사용.",
   "input": {
-    "address": "전라남도 목포시 000",
-    "area": "1800",
-    "zone": "제2종일반주거지역",
-    "projectType": "재개발",
-    "lender": "캐피탈사",
-    "developerTrack": "신설·실적 부족",
-    "contractorGrade": "중견",
+    "address": "경상남도 통영시 용남면 원평리 260",
+    "area": "36640",
+    "zone": "준주거지역",
+    "projectType": "신축개발",
+    "lender": "부동산신탁사",
+    "developerTrack": "미정(정보 없음)",
+    "contractorGrade": "소형",
     "locationTier": "일반 도시",
-    "supplyCompetition": "공급 과다",
+    "supplyCompetition": "미확인(정보 없음)",
     "creditEnhancement": "신용보강 없음/미확인",
     "permitStage": "진행 중",
-    "expectedSaleRate": "65",
-    "equityRatio": "12",
-    "interestRate": "11.0",
-    "originationFee": "2.0",
-    "loanTermMonths": "36"
+    "expectedSaleRate": "80",
+    "equityRatio": "20",
+    "interestRate": "9.0",
+    "originationFee": "1.0",
+    "loanTermMonths": "27"
   },
   "actual": {
     "totalCost": null,
-    "salesRate": 48,
+    "salesRate": null,
     "outcome": "delayed",
     "actualGrade": null,
-    "notes": "더미 데이터 — 인근 공급 과잉으로 분양 흡수가 계획보다 늦어져 만기 연장을 가정한 예시."
+    "notes": "지역주택조합(원래명칭 통영서희지역주택조합) 방식으로 추진, 2021년 분양 시작. 시공사 신태양건설이 약 230억원 규모 부동산 PF 어음 문제로 기업회생을 신청하면서 공정률 85~86% 상태에서 공사가 중단됨. 원래 입주예정이던 2022년 11월을 훌쩍 넘겨 기약 없이 지연되었고, HUG가 보증사고 처리 후 조합 통장을 압류. 일반분양자들은 그 사이 대출이자를 대신 부담. 이후 HUG가 '계속사업'(대체 시행자 지정)으로 처리를 확정해 완전 무산은 아니지만, 최초 계획 대비 3년 이상 지연된 상태."
   },
   "aiResult": null
 }
