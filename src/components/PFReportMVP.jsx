@@ -969,12 +969,14 @@ export default function PFReportMVP() {
             {showCaseValidation && (
               <div style={{ marginTop: 8, border: "1px solid #262C34", borderRadius: 4, padding: 10, maxHeight: 360, overflowY: "auto" }}>
                 <div style={{ fontSize: 10.5, color: "#6B7078", marginBottom: 8, lineHeight: 1.5 }}>
-                  AI가 각 사례의 입력값으로 산출한 등급과 실제 사업결과를 비교합니다. 전부 더미 데이터이며, 실제
-                  사례로 교체되기 전까지는 참고용입니다.
+                  AI가 각 사례의 입력값으로 산출한 등급과 실제 사업결과를 비교합니다. 총 {(caseComparisons || []).length}건 중{" "}
+                  {(caseComparisons || []).filter((c) => c.status === "verified").length}건은 실제 사례, 나머지는 더미 데이터입니다.
                 </div>
                 {(caseComparisons || []).map((c) => (
                   <div key={c.id} style={{ borderBottom: "1px solid #262C34", padding: "8px 0" }}>
-                    <div style={{ fontSize: 12, color: "#E7E5DF", fontWeight: 600 }}>{c.caseName}</div>
+                    <div style={{ fontSize: 12, color: "#E7E5DF", fontWeight: 600 }}>
+                      {c.caseName} <span style={{ fontSize: 10, fontWeight: 400, color: "#6B7078" }}>({c.status === "verified" ? "실제" : "더미"})</span>
+                    </div>
                     <div style={{ fontSize: 11, color: "#9A9E9F", marginTop: 2 }}>
                       AI등급 {c.grade ?? "계산 실패"} · 실제결과 {OUTCOME_LABEL[c.outcome] || c.outcome} ·{" "}
                       <span style={{ color: VERDICT_COLOR[c.verdict] || "#9A9E9F", fontWeight: 600 }}>{c.verdict}</span>

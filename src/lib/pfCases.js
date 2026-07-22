@@ -21,6 +21,7 @@ export function judgeCase(caseObj) {
     return {
       id: caseObj.id,
       caseName: caseObj.caseName,
+      status: caseObj.status,
       grade: result.grade,
       gradeColor: result.gradeColor,
       gradeBand: result.gradeBand,
@@ -32,6 +33,7 @@ export function judgeCase(caseObj) {
     return {
       id: caseObj.id,
       caseName: caseObj.caseName,
+      status: caseObj.status,
       grade: null,
       gradeColor: null,
       gradeBand: null,
