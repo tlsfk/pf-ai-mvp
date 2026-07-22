@@ -3,6 +3,11 @@ import { Building2, MapPin, FileDown, Loader2, ShieldCheck } from "lucide-react"
 import { fetchTrades, geocodeToPnu, fetchLandCharacteristics } from "../lib/realDataFetcher";
 import * as XLSX from "xlsx";
 import { addressToLawdCd, recentDealYmd } from "../lib/lawdCodes";
+import {
+  SCORING_MODEL_VERSION, TIER_COLOR, computeScoreModel, collateralTier,
+  DEVELOPER_OPTIONS, CONTRACTOR_OPTIONS, LOCATION_OPTIONS, PERMIT_OPTIONS, SUPPLY_OPTIONS,
+} from "../lib/scoring";
+import { saveAnalysisResult, buildAnalysisRecord } from "../lib/analysisStorage";
 
 // 사업유형별로 어떤 실거래가 데이터셋을 조회할지
 const PROJECT_TYPE_TRADES = {
@@ -87,60 +92,10 @@ const ZONE_FAR = {
   "일반상업지역": 800,
 };
 
-const TIER_SCORE = { 우수: 100, 보통: 50, 위험: 0 };
-const TIER_COLOR = { 우수: "#2F6F5E", 보통: "#8A7A3A", 위험: "#9C3B34" };
-
-// 숫자 기준 9개 평가항목 중 4개(LTV/DSCR/자기자본비율/담보가치)의 3단계 판정 함수
-// LTV/DSCR 구간(60/80%, 1.5/1.0배)은 사용자가 제시한 기준을 그대로 반영한 것으로,
-// 별도로 검증한 한국 PF 업계 공인 기준은 아닙니다(상업용부동산 대출 심사의 일반적 경험칙 수준).
-function ltvTier(ltv) {
-  if (ltv <= 60) return "우수";
-  if (ltv < 80) return "보통";
-  return "위험";
-}
-function dscrTier(dscr) {
-  const d = Number(dscr);
-  if (d >= 1.5) return "우수";
-  if (d > 1.0) return "보통";
-  return "위험";
-}
-// 자기자본비율 20% 기준: 2011년 저축은행 사태 당시 부실률이 낮았던 저축은행의 내규(20% 미만 대출 거부)가
-// 검증되어 금융당국이 전 저축은행권에 확대 적용했고, 2027년부터 전 금융권 단계적 의무화 예정
-// (출처: KDI FOCUS "부동산 PF 자본확충의 효과와 제도개선 방안", 금융위원회 2026 보도자료).
-function equityTier(equityRatio) {
-  if (equityRatio >= 20) return "우수";
-  if (equityRatio >= 10) return "보통";
-  return "위험";
-}
-function collateralTier(ltv) {
-  const coverage = (100 / ltv) * 100; // 대출금 대비 담보가치 비율(%)
-  if (coverage >= 150) return "우수";
-  if (coverage >= 120) return "보통";
-  return "위험";
-}
-function saleRateTier(rate) {
-  if (rate >= 90) return "우수";
-  if (rate >= 70) return "보통";
-  return "위험";
-}
-
 /** 연환산 All-in 조달비용률(%) = 대출금리 + 취급수수료를 대출기간(년)으로 환산 */
 function allInCostRate(interestRate, originationFee, loanTermMonths) {
   const years = loanTermMonths / 12;
   return interestRate + originationFee / years;
-}
-
-// 정성 평가항목(시행사/시공사/입지/인허가) — 선택지 자체가 곧 등급
-const DEVELOPER_OPTIONS = ["대형·실적 풍부", "보통", "신설·실적 부족", "미정(정보 없음)"];
-const CONTRACTOR_OPTIONS = ["1군 건설사", "중견", "소형", "미정(정보 없음)"];
-const LOCATION_OPTIONS = ["서울 핵심·광역시 중심", "일반 도시", "수요 부족 지역"];
-const PERMIT_OPTIONS = ["완료", "진행 중", "초기 단계"];
-// index 3("미정")은 "보통"이 아니라 "위험"으로 처리합니다 — 정보가 없다는 것 자체가
-// 여신심사에서는 보수적으로 다뤄야 할 리스크이지, 평균치로 얼버무릴 근거가 아닙니다.
-const QUALITATIVE_TIER = { 0: "우수", 1: "보통", 2: "위험", 3: "위험" };
-function optionTier(options, value) {
-  const idx = options.indexOf(value);
-  return idx >= 0 ? QUALITATIVE_TIER[idx] : "위험"; // 매칭 안 되는 값도 보수적으로 위험 처리(이전엔 "보통"으로 얼버무렸음)
 }
 
 // ⚠️ 아래 값은 "AI 추정치"나 "업계 평균"이 아닙니다 — 실제 값을 모른다는 것을 명시적으로 표시하는
@@ -150,57 +105,10 @@ const PLACEHOLDER_DEFAULTS = {
   developerTrack: "미정(정보 없음)",
   contractorGrade: "미정(정보 없음)",
   locationTier: "일반 도시",
+  supplyCompetition: "미확인(정보 없음)",
   expectedSaleRate: 80,
   interestRate: 9.0,
   originationFee: 1.0,
-};
-
-// ⚠️ 20단계 등급 구간(92/87/82…)은 공인 신용평가사 방법론이 아니라 0~100점을 균등 분할한 자체 설계입니다.
-// 등급명(AAA~D)만 실제 신용등급 체계에서 차용했을 뿐, 컷오프 기준 자체는 근거가 없습니다.
-const CREDIT_GRADES = [
-  { grade: "AAA", min: 92 },
-  { grade: "AA+", min: 87 },
-  { grade: "AA", min: 82 },
-  { grade: "AA-", min: 77 },
-  { grade: "A+", min: 72 },
-  { grade: "A", min: 67 },
-  { grade: "A-", min: 62 },
-  { grade: "BBB+", min: 57 },
-  { grade: "BBB", min: 52 },
-  { grade: "BBB-", min: 47 },
-  { grade: "BB+", min: 42 },
-  { grade: "BB", min: 37 },
-  { grade: "BB-", min: 32 },
-  { grade: "B+", min: 27 },
-  { grade: "B", min: 22 },
-  { grade: "B-", min: 17 },
-  { grade: "CCC", min: 11 },
-  { grade: "CC", min: 6 },
-  { grade: "C", min: 0 },
-];
-
-// 등급별 표시 색상(투자적격군/투기적군/부실군 5개 밴드)과 심사 코멘트
-const GRADE_META = {
-  AAA: { color: "#2F6F5E", note: "최우량 — 심사 적합", band: "high" },
-  "AA+": { color: "#2F6F5E", note: "우량 — 심사 적합", band: "high" },
-  AA: { color: "#2F6F5E", note: "우량 — 심사 적합", band: "high" },
-  "AA-": { color: "#2F6F5E", note: "우량 — 심사 적합", band: "high" },
-  "A+": { color: "#3E7C82", note: "양호 — 표준 심사 진행", band: "good" },
-  A: { color: "#3E7C82", note: "양호 — 표준 심사 진행", band: "good" },
-  "A-": { color: "#3E7C82", note: "양호 — 표준 심사 진행", band: "good" },
-  "BBB+": { color: "#3E7C82", note: "적정 — 보완자료 확보 후 진행", band: "good" },
-  BBB: { color: "#3E7C82", note: "적정 — 보완자료 확보 후 진행", band: "good" },
-  "BBB-": { color: "#3E7C82", note: "적정 — 보완자료 확보 후 진행", band: "good" },
-  "BB+": { color: "#8A7A3A", note: "투기적 — 조건부 적합", band: "speculative" },
-  BB: { color: "#8A7A3A", note: "투기적 — 조건부 적합", band: "speculative" },
-  "BB-": { color: "#8A7A3A", note: "투기적 — 조건부 적합", band: "speculative" },
-  "B+": { color: "#8A7A3A", note: "투기적 — 리스크 보완 필요", band: "speculative" },
-  B: { color: "#8A7A3A", note: "투기적 — 리스크 보완 필요", band: "speculative" },
-  "B-": { color: "#8A7A3A", note: "투기적 — 리스크 보완 필요", band: "speculative" },
-  CCC: { color: "#A6642E", note: "고위험 — 재검토 권고", band: "weak" },
-  CC: { color: "#A6642E", note: "고위험 — 재검토 권고", band: "weak" },
-  C: { color: "#A6642E", note: "고위험 — 재검토 권고", band: "weak" },
-  D: { color: "#9C3B34", note: "부도·채무불이행 수준 — 심사 불가", band: "default" },
 };
 
 // 공사비·소프트비용 미입력 시 사용하는 고정 기본값(랜덤 아님, 근거 없는 참고용 수치임을 명시)
@@ -210,11 +118,12 @@ const DEFAULT_SOFT_COST_RATIO = 0.15; // 15%
 function runAnalysis(
   {
     address, area, zone, projectType, lender, developerTrack, contractorGrade, locationTier,
-    permitStage, expectedSaleRate, equityRatio, interestRate, originationFee, loanTermMonths,
+    supplyCompetition, permitStage, expectedSaleRate, equityRatio, interestRate, originationFee, loanTermMonths,
     totalCostOverride, constructionCostPerPyInput, softCostMode, softCostRatioInput,
     designFee, supervisionFee, salesCost, contingency,
   },
-  realPricePerPy = null
+  realPricePerPy = null,
+  compsCount = 0
 ) {
   const seed = hashSeed(address + zone + projectType + lender + area);
   // 폼 입력값은 문자열이라, 산술 연산 시 "9.0" + 0.4 처럼 문자열 이어붙기가 되는 걸 방지하기 위해 숫자로 명시 변환.
@@ -302,40 +211,30 @@ function runAnalysis(
   ];
   const avgRisk = risks.reduce((a, r) => a + r.score, 0) / risks.length;
 
-  // ---- 9개 평가항목 기준 신용등급 스타일 20단계 등급 산정 ----
-  // type: "계산값"(공식으로 산출, 사용자가 재현 가능) / "평가값"(정성적 판정, 주관 개입)
-  // 9개 항목은 동일 가중치(각 100/9점 만점)로 평균됩니다. "입지 22/25"처럼 항목별로 다른
-  // 배점을 매기려면 그 배점 비율 자체의 근거가 있어야 하는데, 아직 그 근거가 없어 균등가중을 유지합니다.
-  const factors = [
-    { name: "LTV", tier: ltvTier(ltv), detail: `${ltv.toFixed(1)}%`, type: "계산값", source: "대출금액÷분양수입(자체 계산)" },
-    { name: "DSCR", tier: dscrTier(dscr), detail: `${dscr}x`, type: "계산값", source: "연환산 사업이익÷연간이자(자체 계산)" },
-    { name: "자기자본 비율", tier: equityTier(equityRatio), detail: `${equityRatio}%`, type: "계산값", source: "사용자 입력값" },
-    { name: "담보가치", tier: collateralTier(ltv), detail: `대출금의 ${Math.round(100 / ltv * 100)}%`, type: "계산값", source: "LTV 역산(자체 계산)" },
-    { name: "시행사", tier: optionTier(DEVELOPER_OPTIONS, developerTrack), detail: developerTrack, type: "평가값", source: developerTrack === PLACEHOLDER_DEFAULTS.developerTrack ? "기본값(미입력)" : "사용자 입력값" },
-    { name: "시공사", tier: optionTier(CONTRACTOR_OPTIONS, contractorGrade), detail: contractorGrade, type: "평가값", source: contractorGrade === PLACEHOLDER_DEFAULTS.contractorGrade ? "기본값(미입력)" : "사용자 입력값" },
-    { name: "입지", tier: optionTier(LOCATION_OPTIONS, locationTier), detail: locationTier, type: "평가값", source: locationTier === PLACEHOLDER_DEFAULTS.locationTier ? "기본값(브이월드 미연동)" : "사용자 입력값" },
-    { name: "분양성", tier: saleRateTier(expectedSaleRate), detail: `예상분양률 ${expectedSaleRate}%`, type: "평가값", source: Number(expectedSaleRate) === PLACEHOLDER_DEFAULTS.expectedSaleRate ? "기본값(미입력)" : "사용자 입력값" },
-    { name: "인허가", tier: optionTier(PERMIT_OPTIONS, permitStage), detail: permitStage, type: "평가값", source: "사용자 입력값" },
-  ];
-  const compositeScore = factors.reduce((sum, f) => sum + TIER_SCORE[f.tier], 0) / factors.length;
-
-  // 사업수지 적자, DSCR<1.0(원리금 상환 불가 수준), 또는 대출구조 자체가 성립하지 않으면
-  // 종합점수와 무관하게 무조건 D.
-  const isDefault = financialModelInvalid || profit <= 0 || Number(dscr) < 1.0;
-  let grade = "D";
-  if (!isDefault) {
-    const tier = CREDIT_GRADES.find((t) => compositeScore >= t.min);
-    grade = tier ? tier.grade : "D";
-  }
-  const gradeInfo = GRADE_META[grade];
+  // 채점 기준(카테고리 가중치·항목별 배점·컷오프)은 전부 ../lib/scoring 모듈 소관입니다.
+  // 여기서는 그 모듈이 요구하는 입력값(ctx)만 조립합니다.
+  const scoreModel = computeScoreModel({
+    ltv, dscr, equityRatio, allInCost,
+    expectedSaleRate, expectedSaleRateIsDefault: Number(expectedSaleRate) === PLACEHOLDER_DEFAULTS.expectedSaleRate,
+    usingRealData, compsCount,
+    locationTier, locationTierIsDefault: locationTier === PLACEHOLDER_DEFAULTS.locationTier,
+    supplyCompetition, supplyCompetitionIsDefault: supplyCompetition === PLACEHOLDER_DEFAULTS.supplyCompetition,
+    projectType, permitStage,
+    developerTrack, developerTrackIsDefault: developerTrack === PLACEHOLDER_DEFAULTS.developerTrack,
+    contractorGrade, contractorGradeIsDefault: contractorGrade === PLACEHOLDER_DEFAULTS.contractorGrade,
+    financialModelInvalid, profit,
+  });
+  // 담보가치는 신규 4카테고리 채점 항목에는 포함되지 않지만(사용자 지시 목록에 없음), 참고용으로 남겨둡니다.
+  const collateralRef = collateralTier(ltv);
 
   return {
     landAreaPy, grossFloorPy, landPricePerPy, salesPricePerPy, constructionCostPerPy, constructionCostSource,
     landCost, constructionCost, generalCost, generalCostSource, financeCost, totalCost, totalCostSource,
     usingTotalCostOverride, loanAmount, equityAmount,
     salesRevenue, profit, margin, ltv, dscr, allInCost, interestRate, originationFee, loanTermMonths,
-    equityRatio, expectedSaleRate, risks, avgRisk, factors, grade, gradeNote: gradeInfo.note,
-    gradeColor: gradeInfo.color, gradeBand: gradeInfo.band, compositeScore, far, usingRealData,
+    equityRatio, expectedSaleRate, risks, avgRisk, scoreModel, collateralRef,
+    grade: scoreModel.grade, gradeNote: scoreModel.gradeNote,
+    gradeColor: scoreModel.gradeColor, gradeBand: scoreModel.gradeBand, far, usingRealData,
     financialModelInvalid,
   };
 }
@@ -447,11 +346,14 @@ export default function PFReportMVP() {
     clearInterval(stepTimer);
     setStep(steps.length);
 
-    setResult(runAnalysis(form, realPrice));
-    setDataNote(realPrice != null ? { ok: true } : { ok: false, reason });
+    const analysisResult = runAnalysis(form, realPrice, (fetchedComps || []).length);
+    const note = realPrice != null ? { ok: true } : { ok: false, reason };
+    setResult(analysisResult);
+    setDataNote(note);
     setComps(fetchedComps || []);
     setExpanded(true);
     setStage("done");
+    saveAnalysisResult(buildAnalysisRecord({ form, result: analysisResult, dataNote: note, modelVersion: SCORING_MODEL_VERSION }));
   };
 
   const handleDownload = () => window.print();
@@ -480,7 +382,7 @@ export default function PFReportMVP() {
       ["DSCR(x)", result.dscr, "자체 계산"],
       ["All-in cost(%)", result.allInCost.toFixed(1), "자체 계산"],
       ["공사비(평당, 만원)", result.constructionCostPerPy, result.constructionCostSource],
-      ["종합점수", result.compositeScore.toFixed(1), "자체 산정(9개 항목 균등가중)"],
+      ["종합점수", result.scoreModel.totalScore.toFixed(1), `자체 산정(4개 카테고리 가중합산, 모델 v${result.scoreModel.version})`],
       ["종합등급", result.grade, "자체 산정"],
     ];
     const ws1 = XLSX.utils.aoa_to_sheet(overviewRows);
@@ -488,8 +390,10 @@ export default function PFReportMVP() {
 
     // 시트2: 종합 평가항목
     const factorRows = [
-      ["항목", "구분", "값", "점수", "등급", "출처"],
-      ...result.factors.map((f) => [f.name, f.type, f.detail, TIER_SCORE[f.tier], f.tier, f.source]),
+      ["카테고리", "항목", "구분", "값", "점수", "등급", "출처"],
+      ...result.scoreModel.categories.flatMap((cat) =>
+        cat.items.map((i) => [cat.name, i.name, i.type, i.detail, `${i.score.toFixed(1)}/${i.maxPoints}`, i.tier, i.source])
+      ),
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(factorRows);
     XLSX.utils.book_append_sheet(wb, ws2, "종합평가항목");
@@ -677,6 +581,12 @@ export default function PFReportMVP() {
                   <input type="number" min="0" max="100" value={form.expectedSaleRate} onChange={(e) => setForm({ ...form, expectedSaleRate: e.target.value })} />
                 </div>
                 <div className="field">
+                  <label>공급 경쟁</label>
+                  <select value={form.supplyCompetition} onChange={(e) => setForm({ ...form, supplyCompetition: e.target.value })}>
+                    {SUPPLY_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="field">
                   <label>대출금리 (%)</label>
                   <input type="number" min="0" max="50" step="0.1" value={form.interestRate} onChange={(e) => setForm({ ...form, interestRate: e.target.value })} />
                 </div>
@@ -820,14 +730,19 @@ export default function PFReportMVP() {
 
                   {/* ---- 요약 미리보기 (항상 표시) ---- */}
                   <h2 style={{ fontSize: 15, marginTop: 24, marginBottom: 10, color: "#1F1C14" }}>핵심 지표</h2>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
-                    {result.factors.slice(0, 3).map((f) => (
-                      <div className="metric-card" key={f.name}>
-                        <div style={{ fontSize: 11, color: "#332818" }}>{f.name}</div>
-                        <div className="metric-num">{f.detail}</div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[f.tier], marginTop: 2 }}>{f.tier}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+                    {result.scoreModel.categories[0].items.slice(0, 3).map((item) => (
+                      <div className="metric-card" key={item.key}>
+                        <div style={{ fontSize: 11, color: "#332818" }}>{item.name}</div>
+                        <div className="metric-num">{item.detail}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[item.tier], marginTop: 2 }}>{item.tier}</div>
                       </div>
                     ))}
+                    <div className="metric-card">
+                      <div style={{ fontSize: 11, color: "#332818" }}>담보가치 (참고, 미채점)</div>
+                      <div className="metric-num">대출금의 {Math.round(100 / result.ltv * 100)}%</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[result.collateralRef], marginTop: 2 }}>{result.collateralRef}</div>
+                    </div>
                   </div>
 
                   <h2 style={{ fontSize: 15, marginBottom: 4, color: "#1F1C14" }}>주요 위험 요소 (상위 3개)</h2>
@@ -983,9 +898,11 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>1. 종합 평가항목 (종합점수 {result.compositeScore.toFixed(1)}/100, 9개 항목 균등가중 평균)</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>
+                    1. 종합 평가항목 (종합점수 {result.scoreModel.totalScore.toFixed(1)}/100 — 금융안정성40·사업성30·사업안정성20·입지경쟁력10 가중합산)
+                  </h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                    “계산값”은 공식으로 산출되어 재현 가능한 값, “평가값”은 사용자 입력 또는 기본값에 따른 정성적 판정입니다.
+                    “정량”은 공식으로 산출되어 재현 가능한 값, “정성”은 사용자 입력·선택에 따른 정성적 판정입니다.
                   </div>
                   <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 4 }}>
                     <thead>
@@ -999,23 +916,32 @@ export default function PFReportMVP() {
                       </tr>
                     </thead>
                     <tbody>
-                      {result.factors.map((f) => (
-                        <tr key={f.name} style={{ borderBottom: "1px solid #8F8770" }}>
-                          <td style={{ padding: "6px 4px" }}>{f.name}</td>
-                          <td style={{ padding: "6px 4px" }}>
-                            <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: f.type === "계산값" ? "#DDE8E5" : "#EFE6D8", color: f.type === "계산값" ? "#2F6F5E" : "#8A6A2E" }}>
-                              {f.type}
-                            </span>
-                          </td>
-                          <td style={{ padding: "6px 4px", color: "#332818" }}>{f.detail}</td>
-                          <td style={{ padding: "6px 4px", textAlign: "center" }}>{TIER_SCORE[f.tier]}/100</td>
-                          <td style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, color: TIER_COLOR[f.tier] }}>{f.tier}</td>
-                          <td style={{ padding: "6px 4px", fontSize: 11, color: "#5C5744" }}>{f.source}</td>
-                        </tr>
+                      {result.scoreModel.categories.map((cat) => (
+                        <React.Fragment key={cat.key}>
+                          <tr style={{ background: "#EFEBDD" }}>
+                            <td colSpan={6} style={{ padding: "6px 4px", fontWeight: 700, color: "#332818" }}>
+                              {cat.name} ({cat.score.toFixed(1)}/{cat.maxPoints})
+                            </td>
+                          </tr>
+                          {cat.items.map((item) => (
+                            <tr key={item.key} style={{ borderBottom: "1px solid #8F8770" }}>
+                              <td style={{ padding: "6px 4px" }} title={item.reason}>{item.name}</td>
+                              <td style={{ padding: "6px 4px" }}>
+                                <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 3, background: item.type === "정량" ? "#DDE8E5" : "#EFE6D8", color: item.type === "정량" ? "#2F6F5E" : "#8A6A2E" }}>
+                                  {item.type}
+                                </span>
+                              </td>
+                              <td style={{ padding: "6px 4px", color: "#332818" }}>{item.detail}</td>
+                              <td style={{ padding: "6px 4px", textAlign: "center" }}>{item.score.toFixed(1)}/{item.maxPoints}</td>
+                              <td style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, color: TIER_COLOR[item.tier] }}>{item.tier}</td>
+                              <td style={{ padding: "6px 4px", fontSize: 11, color: "#5C5744" }}>{item.source}</td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
                       ))}
                       <tr style={{ fontWeight: 700 }}>
-                        <td colSpan={3} style={{ padding: "6px 4px" }}>종합점수 (9개 항목 평균)</td>
-                        <td style={{ padding: "6px 4px", textAlign: "center" }}>{result.compositeScore.toFixed(1)}/100</td>
+                        <td colSpan={3} style={{ padding: "6px 4px" }}>종합점수 (4개 카테고리 가중합산)</td>
+                        <td style={{ padding: "6px 4px", textAlign: "center" }}>{result.scoreModel.totalScore.toFixed(1)}/100</td>
                         <td style={{ padding: "6px 4px", textAlign: "center", color: result.gradeColor }}>{result.grade}</td>
                         <td></td>
                       </tr>
@@ -1073,7 +999,7 @@ export default function PFReportMVP() {
                   <div style={{ background: "#F1EEE5", border: `1.5px solid ${result.gradeColor}`, borderRadius: 5, padding: "16px 18px" }}>
                     <p style={{ fontSize: 14, lineHeight: 1.8, color: "#1F1C14", margin: 0 }}>
                       본 사업지는 사업수익률 {result.margin.toFixed(1)}%, 평균 리스크 스코어 {result.avgRisk.toFixed(1)}/4 수준으로 산출되어
-                      종합 등급 {result.grade}({result.gradeNote})로 평가됩니다. (종합점수 {result.compositeScore.toFixed(1)}/100)
+                      종합 등급 {result.grade}({result.gradeNote})로 평가됩니다. (종합점수 {result.scoreModel.totalScore.toFixed(1)}/100)
                       {result.gradeBand === "high" && " 분양가 가정과 공사비 변동에 대한 민감도가 낮은 편으로, 표준 심사 절차 진행을 검토할 수 있습니다."}
                       {result.gradeBand === "good" && " 전반적으로 양호하나, 일부 리스크 항목에 대한 보완 자료(분양 흡수율 근거, 시공사 신용등급 등) 확보 후 심사를 진행하는 것을 권고합니다."}
                       {result.gradeBand === "speculative" && " 투기적 등급 구간으로, 조달구조·분양전략에 대한 보완 없이는 심사 승인이 어려울 수 있습니다."}
