@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Building2, MapPin, FileDown, Loader2, ShieldCheck } from "lucide-react";
 import { fetchTrades, geocodeToPnu, fetchLandCharacteristics } from "../lib/realDataFetcher";
 import * as XLSX from "xlsx";
-import { addressToLawdCd, recentDealYmd } from "../lib/lawdCodes";
+import { addressToLawdCd, recentDealYmd, LAWD_CODES, AMBIGUOUS_GU } from "../lib/lawdCodes";
 import {
   SCORING_MODEL_VERSION, TIER_COLOR, computeScoreModel, collateralTier,
   DEVELOPER_OPTIONS, CONTRACTOR_OPTIONS, LOCATION_OPTIONS, PERMIT_OPTIONS, SUPPLY_OPTIONS,
@@ -11,6 +11,14 @@ import {
 import { saveAnalysisResult, buildAnalysisRecord, loadAnalysisHistory, deleteAnalysisResult } from "../lib/analysisStorage";
 
 // 사업유형별로 어떤 실거래가 데이터셋을 조회할지
+// LAWD_CD(5자리) -> 사람이 읽을 지역명. 주소 입력 즉시(네트워크 호출 없이) 어느 시군구로
+// 인식됐는지 보여주기 위한 역방향 조회 테이블 — addressToLawdCd 내부 로직은 건드리지 않고
+// 이미 export된 LAWD_CODES/AMBIGUOUS_GU만 재구성합니다.
+const CODE_TO_REGION = {
+  ...Object.fromEntries(Object.entries(LAWD_CODES).map(([name, code]) => [code, name])),
+  ...Object.fromEntries(AMBIGUOUS_GU.flatMap(([name, cityMap]) => cityMap.map(([city, code]) => [code, `${city} ${name}`]))),
+};
+
 const PROJECT_TYPE_TRADES = {
   "재건축": ["aptDev"],
   "재개발": ["rowHouse", "singleHouse", "land"],
@@ -635,6 +643,19 @@ export default function PFReportMVP() {
               <label><MapPin size={11} style={{ marginRight: 4 }} />주소</label>
               <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
+            {form.address.trim() && (
+              (() => {
+                const lawdCd = addressToLawdCd(form.address);
+                const regionLabel = lawdCd ? CODE_TO_REGION[lawdCd] : null;
+                return (
+                  <div style={{ fontSize: 11, marginBottom: 8, color: regionLabel ? "#8AB89A" : "#C98A6A" }}>
+                    {regionLabel
+                      ? `자동 인식: ${regionLabel} (법정동코드 ${lawdCd}) — 실거래가 조회에 사용됩니다.`
+                      : "구/군을 인식하지 못했습니다 — 실거래가는 가정치로 대체됩니다."}
+                  </div>
+                );
+              })()
+            )}
             <button
               type="button"
               onClick={handleVworldLookup}
