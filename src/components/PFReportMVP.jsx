@@ -983,10 +983,6 @@ export default function PFReportMVP() {
                 </div>
 
                 <div className="paper" style={{ position: "relative" }}>
-                  <div style={{ position: "absolute", top: 32, right: 40, textAlign: "right" }}>
-                    <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555555" }}>종합등급</div>
-                    <div style={{ fontFamily: "'Source Serif 4', serif", fontSize: 26, fontWeight: 700, color: "#000000" }}>{result.grade}</div>
-                  </div>
                   <div className="cover-page" style={{ textAlign: "center", padding: "60px 20px", borderBottom: "2px solid #CCCCCC", marginBottom: 32 }}>
                     <div style={{ fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", color: "#555555", marginBottom: 16 }}>
                       Real Estate Decision OS
@@ -994,7 +990,14 @@ export default function PFReportMVP() {
                     <h1 style={{ fontFamily: "'Source Serif 4', serif", fontSize: 30, margin: "0 0 8px", color: "#000000" }}>
                       부동산 PF 사업성 심사 리포트
                     </h1>
-                    <div style={{ fontSize: 13, color: "#555555", marginBottom: 24 }}>1차 타당성 검토용 (Quick Screening)</div>
+                    <div style={{ fontSize: 13, color: "#555555", marginBottom: 32 }}>1차 타당성 검토용 (Quick Screening)</div>
+                    <div style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center", width: 110, height: 84,
+                      border: `3px solid ${result.gradeColor}`, borderRadius: 28, color: "#000000",
+                      fontFamily: "'Source Serif 4', serif", fontSize: 28, fontWeight: 700, marginBottom: 24,
+                    }}>
+                      {result.grade}
+                    </div>
                     <table style={{ margin: "0 auto", fontSize: 13, borderCollapse: "collapse" }}>
                       <tbody>
                         <tr><td style={{ padding: "4px 12px", color: "#555555", textAlign: "right" }}>사업지</td><td style={{ padding: "4px 12px", textAlign: "left", color: "#000000", fontWeight: 600 }}>{form.address}</td></tr>
