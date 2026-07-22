@@ -6,7 +6,7 @@ function loadCase(id) {
 }
 
 const index = JSON.parse(readFileSync("./data/pf-cases/index.json", "utf-8"));
-console.assert(index.cases.length === 10, "expected 10 cases, got " + index.cases.length);
+console.assert(index.cases.length === 11, "expected 11 cases, got " + index.cases.length);
 
 const results = index.cases.map((id) => judgeCase(loadCase(id)));
 
@@ -29,7 +29,7 @@ console.assert(c3.verdict === "판정보류", "case-003 (delayed) should be 판�
 console.assert(c5.verdict === "판정보류", "case-005 (unknown) should be 판정보류, got " + c5.verdict);
 
 // success/default 사례는 일치/불일치 중 하나로 명확히 갈려야 함(판정보류 아님)
-for (const id of ["case-001", "case-002", "case-004", "case-006", "case-007", "case-008", "case-009", "case-010"]) {
+for (const id of ["case-001", "case-002", "case-004", "case-006", "case-007", "case-008", "case-009", "case-010", "case-011"]) {
   const r = results.find((x) => x.id === id);
   console.assert(["일치", "불일치"].includes(r.verdict), `${id} should be 일치 or 불일치, got ${r.verdict}`);
 }
