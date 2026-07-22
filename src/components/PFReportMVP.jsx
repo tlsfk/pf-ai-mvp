@@ -300,6 +300,43 @@ function costOverrunStressRow(result, overrunPct) {
   return { overrunPct, extraCost, totalCost, profit, margin, dscr };
 }
 
+/**
+ * "시장성 분석" 섹션용 요약 — 새 채점 로직이 아니라, 이미 scoring 모듈이 산정해 둔
+ * 입지(locationBase)·공급경쟁(supplyCompetition)·예상분양률(expectedSaleRate)·주변실거래(comps)
+ * 항목의 tier/detail/reason을 그대로 모아 시장 관점 문장으로 재구성만 합니다.
+ * ⚠️ 여기서 만드는 "분양 경쟁력"/"공급 리스크"/"시장 종합 평가"는 표시용 라벨일 뿐,
+ * scoreModel의 배점에는 전혀 반영되지 않습니다(채점 엔진은 건드리지 않음).
+ */
+function buildMarketAnalysis(scoreModel) {
+  const flat = scoreModel.categories.flatMap((c) => c.items);
+  const find = (key) => flat.find((i) => i.key === key);
+  const location = find("locationBase");
+  const supply = find("supplyCompetition");
+  const saleRate = find("expectedSaleRate");
+  const comps = find("comps");
+
+  const salesCompetitiveness =
+    location.tier === "위험" || saleRate.tier === "위험" ? "취약"
+    : location.tier === "우수" && saleRate.tier === "우수" ? "우수"
+    : "보통";
+  const supplyRiskLabel = supply.tier === "우수" ? "낮음" : supply.tier === "보통" ? "보통" : "높음";
+
+  const items = [location, supply, saleRate, comps];
+  const overallTier = items.some((i) => i.tier === "위험") ? "위험" : items.every((i) => i.tier === "우수") ? "우수" : "보통";
+  const overallNote =
+    overallTier === "우수" ? "시장성 측면에서 특별한 우려 요인이 없습니다."
+    : overallTier === "위험" ? "시장성 측면에서 리스크 요인이 확인되어 보완자료 확보가 필요합니다."
+    : "시장성은 대체로 무난한 수준이나 일부 보완이 필요합니다.";
+
+  const opinion = [
+    `입지는 "${location.detail}"(${location.tier}) 수준이며, ${comps.reason}`,
+    `예상 분양률 ${saleRate.detail}(${saleRate.tier})과 입지를 종합하면 분양 경쟁력은 "${salesCompetitiveness}" 수준으로 판단됩니다.`,
+    `공급 경쟁 현황은 "${supply.detail}"(${supply.tier})로, 공급 리스크는 "${supplyRiskLabel}" 수준입니다.`,
+    overallNote,
+  ].join(" ");
+
+  return { location, supply, saleRate, comps, salesCompetitiveness, supplyRiskLabel, overallTier, opinion };
+}
 
 /** 숫자 입력 필드가 비정상(비어있음/음수/문자 등)이면 그대로 두지 않고 사유를 모아 반환 —
  * 검증 없이 진행하면 리포트 전체 수치가 조용히 NaN으로 깨집니다. */
@@ -348,6 +385,7 @@ export default function PFReportMVP() {
   const [showAdvanced, setShowAdvanced] = useState(false); // 고급 설정(시행사실적 등 직접입력) 펼침 여부
   const [vworldStatus, setVworldStatus] = useState(null); // null | "loading" | { ok: true, ... } | { ok: false, reason }
   const [formErrors, setFormErrors] = useState([]); // 실행 전 입력값 검증 오류 목록
+  const market = result ? buildMarketAnalysis(result.scoreModel) : null; // "3. 시장성 분석" 섹션용 파생값(채점 재사용, 새 계산 없음)
 
   const handleVworldLookup = async () => {
     setVworldStatus("loading");
@@ -927,38 +965,6 @@ export default function PFReportMVP() {
                     실제로는 토지비 선투입 등 조달 순서에 따라 배분이 달라질 수 있습니다.
                   </div>
 
-                  {dataNote?.ok && comps.length > 0 && (
-                    <>
-                      <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 8, color: "#1F1C14" }}>인근 실거래 비교 (Comps)</h2>
-                      <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 4 }}>
-                        <thead>
-                          <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
-                            <td style={{ padding: "6px 4px" }}>단지/건물명</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>거래금액</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>전용면적</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>평당가</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>거래시점</td>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {comps.slice(0, 8).map((c, i) => (
-                            <tr key={i} style={{ borderBottom: "1px solid #8F8770" }}>
-                              <td style={{ padding: "6px 4px" }}>{c.name}</td>
-                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(c.dealAmount)}만원</td>
-                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{c.area}㎡</td>
-                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(c.pricePerPy)}만원</td>
-                              <td style={{ padding: "6px 4px", textAlign: "right", color: "#332818" }}>{c.dealYear}.{c.dealMonth}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                        ※ 국토교통부 실거래가 API로 조회된 실제 거래 내역입니다(최대 8건 표시, 조회 조건: 동일 시군구·최근 공시월).
-                        본 사업지와 정확히 인접하지 않을 수 있습니다.
-                      </div>
-                    </>
-                  )}
-
                   <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>분양률 스트레스 테스트</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
                     ⚠️ 단순화 가정: 대출조건·총사업비는 고정하고 실현 분양수입만 변동시킨 것입니다. 미분양분은 수입 0으로 가정(보수적).
@@ -1110,7 +1116,61 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>3. 사업성 지표</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>3. 시장성 분석</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    입지·공급경쟁·주변 실거래·예상 분양률(위 1번 종합 평가항목 표에서 이미 채점된 값)을 시장 관점으로 모아본 것입니다. 별도 시장 데이터를 새로 수집하지 않았습니다.
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+                    <div className="metric-card">
+                      <div style={{ fontSize: 11, color: "#332818" }}>분양 경쟁력</div>
+                      <div className="metric-num" style={{ color: TIER_COLOR[market.salesCompetitiveness === "취약" ? "위험" : market.salesCompetitiveness === "우수" ? "우수" : "보통"] }}>{market.salesCompetitiveness}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div style={{ fontSize: 11, color: "#332818" }}>공급 리스크</div>
+                      <div className="metric-num" style={{ color: TIER_COLOR[market.supplyRiskLabel === "높음" ? "위험" : market.supplyRiskLabel === "낮음" ? "우수" : "보통"] }}>{market.supplyRiskLabel}</div>
+                    </div>
+                    <div className="metric-card">
+                      <div style={{ fontSize: 11, color: "#332818" }}>시장 종합 평가</div>
+                      <div className="metric-num" style={{ color: TIER_COLOR[market.overallTier] }}>{market.overallTier}</div>
+                    </div>
+                  </div>
+                  <div style={{ background: "#F1EEE5", border: "1px solid #C4BCA8", borderRadius: 4, padding: "10px 12px", fontSize: 13, lineHeight: 1.7, color: "#1F1C14", marginBottom: 12 }}>
+                    {market.opinion}
+                  </div>
+
+                  {dataNote?.ok && comps.length > 0 && (
+                    <>
+                      <h3 style={{ fontSize: 13, marginBottom: 8, color: "#1F1C14" }}>인근 실거래 비교 (Comps)</h3>
+                      <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 4 }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
+                            <td style={{ padding: "6px 4px" }}>단지/건물명</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>거래금액</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>전용면적</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>평당가</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>거래시점</td>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {comps.slice(0, 8).map((c, i) => (
+                            <tr key={i} style={{ borderBottom: "1px solid #8F8770" }}>
+                              <td style={{ padding: "6px 4px" }}>{c.name}</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(c.dealAmount)}만원</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{c.area}㎡</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(c.pricePerPy)}만원</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right", color: "#332818" }}>{c.dealYear}.{c.dealMonth}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                        ※ 국토교통부 실거래가 API로 조회된 실제 거래 내역입니다(최대 8건 표시, 조회 조건: 동일 시군구·최근 공시월).
+                        본 사업지와 정확히 인접하지 않을 수 있습니다.
+                      </div>
+                    </>
+                  )}
+
+                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>4. 사업성 지표</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 4 }}>
                     출처: 총사업비({result.totalCostSource}) · 분양수입 평당가({dataNote?.ok ? "국토교통부 실거래가 API" : "가정치(실거래가 조회 실패)"}) ·
                     공사비({result.constructionCostSource}) · 소프트비용({result.generalCostSource}) · 대출조건(사용자 입력 또는 기본값)
@@ -1131,7 +1191,7 @@ export default function PFReportMVP() {
                     </tbody>
                   </table>
 
-                  <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>4. AI 종합의견</h2>
+                  <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>5. AI 종합의견</h2>
                   <div style={{ background: "#F1EEE5", border: `1.5px solid ${result.gradeColor}`, borderRadius: 5, padding: "16px 18px" }}>
                     <p style={{ fontSize: 14, lineHeight: 1.8, color: "#1F1C14", margin: 0 }}>
                       본 사업지는 사업수익률 {result.margin.toFixed(1)}% 수준으로 산출되어
