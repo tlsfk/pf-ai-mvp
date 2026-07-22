@@ -125,6 +125,13 @@ const PLACEHOLDER_DEFAULTS = {
 const DEFAULT_CONSTRUCTION_COST_PER_PY = 900; // 만원/평
 const DEFAULT_SOFT_COST_RATIO = 0.15; // 15%
 
+/**
+ * 폼 입력값 하나로 사업수지·금융구조·채점 결과를 전부 산출하는 핵심 계산 함수.
+ * @param {object} form - PFReportMVP의 `form` state와 동일한 필드 구조(문자열 입력값 포함).
+ * @param {number|null} [realPricePerPy] - 국토부 실거래가로 조회된 평당가(만원). null이면 가정치 사용.
+ * @param {number} [compsCount] - 실거래가 API로 확보한 비교사례 건수(사업성/입지 채점에 사용).
+ * @returns {object} 리포트 렌더링에 쓰이는 계산 결과(landCost, totalCost, ltv, dscr, scoreModel, grade 등).
+ */
 function runAnalysis(
   {
     address, area, zone, projectType, lender, developerTrack, contractorGrade, locationTier,
@@ -246,6 +253,13 @@ function runAnalysis(
 }
 
 const fmt = (n) => Math.round(n).toLocaleString("ko-KR");
+
+// 사업수지/DSCR 색상 판정 — TIER_COLOR(우수/위험)와 동일한 색을 여러 곳에서 매직 hex로
+// 중복 하드코딩하던 것을 하나로 모음(값 자체는 동일, 표시 결과 변화 없음).
+/** @param {number} profit */
+const profitColor = (profit) => (profit > 0 ? TIER_COLOR.우수 : TIER_COLOR.위험);
+/** @param {number | null} dscr */
+const dscrColor = (dscr) => (dscr != null && dscr < 1 ? TIER_COLOR.위험 : "#332818");
 
 /**
  * 분양률 스트레스 테스트: 다른 조건(대출금액·금리·기간·총사업비)은 고정한 채,
@@ -369,6 +383,63 @@ function validateForm(f) {
   check(f.interestRate, "대출금리", { min: 0, max: 50 });
   check(f.originationFee, "취급수수료", { min: 0, max: 20 });
   return errors;
+}
+
+/**
+ * 핵심 리스크 TOP3·핵심 강점 TOP2·리스크 분석 3곳에서 동일하게 쓰이던 채점항목 1건
+ * 렌더링을 하나로 모음(마크업/스타일 변화 없음).
+ * @param {{ item: { key: string, categoryName: string, name: string, tier: string, score: number, maxPoints: number, reason: string } }} props
+ */
+function ScoreItemRow({ item }) {
+  return (
+    <div style={{ padding: "7px 0", borderBottom: "1px solid #8F8770" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.categoryName} · {item.name}</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[item.tier], whiteSpace: "nowrap" }}>{item.tier} ({item.score.toFixed(1)}/{item.maxPoints})</div>
+      </div>
+      <div style={{ fontSize: 12, color: "#332818", marginTop: 2 }}>{item.reason}</div>
+    </div>
+  );
+}
+
+/**
+ * 분양률/금리/공사비 3개 스트레스 테스트 표가 열 구조는 동일하고 시나리오·라벨·둘째 컬럼 값만
+ * 다르던 것을 하나로 모음(각 표의 렌더링 결과·스타일은 이전과 동일).
+ * @param {{
+ *   title: string, warning: string, scenarioLabel: string, col2Label: string, topMargin?: number,
+ *   rows: Array<{ key: string|number, label: string, highlight: boolean, col2Value: number,
+ *     profit: number, margin: number, dscr: number|null }>,
+ * }} props
+ */
+function StressTestTable({ title, warning, scenarioLabel, col2Label, rows, topMargin = 28 }) {
+  return (
+    <>
+      <h2 style={{ fontSize: 15, marginTop: topMargin, marginBottom: 4, color: "#1F1C14" }}>{title}</h2>
+      <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>{warning}</div>
+      <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse", marginBottom: 20 }}>
+        <thead>
+          <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
+            <td style={{ padding: "6px 4px" }}>{scenarioLabel}</td>
+            <td style={{ padding: "6px 4px", textAlign: "right" }}>{col2Label}</td>
+            <td style={{ padding: "6px 4px", textAlign: "right" }}>사업수지</td>
+            <td style={{ padding: "6px 4px", textAlign: "right" }}>수익률</td>
+            <td style={{ padding: "6px 4px", textAlign: "right" }}>DSCR</td>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key} style={{ borderBottom: "1px solid #8F8770", background: r.highlight ? "#F1EEE5" : "transparent" }}>
+              <td style={{ padding: "6px 4px" }}>{r.label}</td>
+              <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(r.col2Value)}만원</td>
+              <td style={{ padding: "6px 4px", textAlign: "right", color: profitColor(r.profit) }}>{fmt(r.profit)}만원</td>
+              <td style={{ padding: "6px 4px", textAlign: "right" }}>{r.margin.toFixed(1)}%</td>
+              <td style={{ padding: "6px 4px", textAlign: "right", color: dscrColor(r.dscr) }}>{r.dscr != null ? r.dscr.toFixed(2) + "x" : "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
 }
 
 export default function PFReportMVP() {
@@ -1013,26 +1084,14 @@ export default function PFReportMVP() {
                   {topRiskItems(result.scoreModel, 3).length === 0 ? (
                     <div style={{ fontSize: 13, color: "#2F6F5E", marginBottom: 12 }}>모든 평가항목이 우수로 판정되어 특별한 리스크가 없습니다.</div>
                   ) : topRiskItems(result.scoreModel, 3).map((item) => (
-                    <div key={item.key} style={{ padding: "7px 0", borderBottom: "1px solid #8F8770" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.categoryName} · {item.name}</div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[item.tier], whiteSpace: "nowrap" }}>{item.tier} ({item.score.toFixed(1)}/{item.maxPoints})</div>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#332818", marginTop: 2 }}>{item.reason}</div>
-                    </div>
+                    <ScoreItemRow key={item.key} item={item} />
                   ))}
 
                   <h2 style={{ fontSize: 15, marginTop: 18, marginBottom: 4, color: "#1F1C14" }}>핵심 강점 TOP2</h2>
                   {topStrengthItems(result.scoreModel, 2).length === 0 ? (
                     <div style={{ fontSize: 13, color: "#9C3B34", marginBottom: 12 }}>우수로 판정된 항목이 없습니다.</div>
                   ) : topStrengthItems(result.scoreModel, 2).map((item) => (
-                    <div key={item.key} style={{ padding: "7px 0", borderBottom: "1px solid #8F8770" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.categoryName} · {item.name}</div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[item.tier], whiteSpace: "nowrap" }}>{item.tier} ({item.score.toFixed(1)}/{item.maxPoints})</div>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#332818", marginTop: 2 }}>{item.reason}</div>
-                    </div>
+                    <ScoreItemRow key={item.key} item={item} />
                   ))}
 
                   <div style={{ marginTop: 16, padding: "12px 14px", background: "#F1EEE5", borderRadius: 4, border: `1px solid ${result.gradeColor}` }}>
@@ -1183,7 +1242,7 @@ export default function PFReportMVP() {
                     <tbody>
                       <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818", width: 140 }}>총사업비</td><td style={{ padding: "6px 4px" }}>{fmt(result.totalCost)}만원</td></tr>
                       <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>예상 분양수입</td><td style={{ padding: "6px 4px" }}>{fmt(result.salesRevenue)}만원</td></tr>
-                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>사업수지 (이익)</td><td style={{ padding: "6px 4px", color: result.profit > 0 ? "#2F6F5E" : "#9C3B34", fontWeight: 600 }}>{fmt(result.profit)}만원</td></tr>
+                      <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>사업수지 (이익)</td><td style={{ padding: "6px 4px", color: profitColor(result.profit), fontWeight: 600 }}>{fmt(result.profit)}만원</td></tr>
                       <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>사업수익률</td><td style={{ padding: "6px 4px" }}>{result.margin.toFixed(1)}%</td></tr>
                       <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>PF 대출금액</td><td style={{ padding: "6px 4px" }}>{fmt(result.loanAmount)}만원</td></tr>
                       <tr style={{ borderBottom: "1px solid #8F8770" }}><td style={{ padding: "6px 4px", color: "#332818" }}>자기자본</td><td style={{ padding: "6px 4px" }}>{fmt(result.equityAmount)}만원</td></tr>
@@ -1264,105 +1323,55 @@ export default function PFReportMVP() {
                   {topRiskItems(result.scoreModel, 99).length === 0 ? (
                     <div style={{ fontSize: 13, color: "#2F6F5E" }}>모든 평가항목이 우수로 판정되어 특별한 리스크가 없습니다.</div>
                   ) : topRiskItems(result.scoreModel, 99).map((item) => (
-                    <div key={item.key} style={{ padding: "7px 0", borderBottom: "1px solid #8F8770" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.categoryName} · {item.name}</div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: TIER_COLOR[item.tier], whiteSpace: "nowrap" }}>{item.tier} ({item.score.toFixed(1)}/{item.maxPoints})</div>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#332818", marginTop: 2 }}>{item.reason}</div>
-                    </div>
+                    <ScoreItemRow key={item.key} item={item} />
                   ))}
 
-                  <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 4, color: "#1F1C14" }}>분양률 스트레스 테스트</h2>
-                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                    ⚠️ 단순화 가정: 대출조건·총사업비는 고정하고 실현 분양수입만 변동시킨 것입니다. 미분양분은 수입 0으로 가정(보수적).
-                  </div>
-                  <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse", marginBottom: 20 }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
-                        <td style={{ padding: "6px 4px" }}>분양률 시나리오</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>분양수입</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>사업수지</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>수익률</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>DSCR</td>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[60, 80, 100].map((rate) => {
-                        const row = stressTestRow(result, rate);
-                        return (
-                          <tr key={rate} style={{ borderBottom: "1px solid #8F8770", background: rate === Math.round(result.expectedSaleRate) ? "#F1EEE5" : "transparent" }}>
-                            <td style={{ padding: "6px 4px" }}>분양률 {rate}%{rate === Math.round(result.expectedSaleRate) ? " (가정치)" : ""}</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(row.revenue)}만원</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.profit > 0 ? "#2F6F5E" : "#9C3B34" }}>{fmt(row.profit)}만원</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{row.margin.toFixed(1)}%</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.dscr != null && row.dscr < 1 ? "#9C3B34" : "#332818" }}>{row.dscr != null ? row.dscr.toFixed(2) + "x" : "-"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <StressTestTable
+                    title="분양률 스트레스 테스트"
+                    warning="⚠️ 단순화 가정: 대출조건·총사업비는 고정하고 실현 분양수입만 변동시킨 것입니다. 미분양분은 수입 0으로 가정(보수적)."
+                    scenarioLabel="분양률 시나리오" col2Label="분양수입"
+                    rows={[60, 80, 100].map((rate) => {
+                      const row = stressTestRow(result, rate);
+                      return {
+                        key: rate,
+                        label: `분양률 ${rate}%${rate === Math.round(result.expectedSaleRate) ? " (가정치)" : ""}`,
+                        highlight: rate === Math.round(result.expectedSaleRate),
+                        col2Value: row.revenue, profit: row.profit, margin: row.margin, dscr: row.dscr,
+                      };
+                    })}
+                  />
 
-                  <h2 style={{ fontSize: 15, marginTop: 12, marginBottom: 4, color: "#1F1C14" }}>금리 상승 스트레스 테스트</h2>
-                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                    ⚠️ 단순화 가정: 대출금액·분양수입은 고정하고 대출금리만 변동시킨 것입니다(대출금액 재산정은 반영 안 함).
-                  </div>
-                  <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse", marginBottom: 20 }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
-                        <td style={{ padding: "6px 4px" }}>금리 시나리오</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>총사업비</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>사업수지</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>수익률</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>DSCR</td>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[0, 1, 3, 5].map((delta) => {
-                        const row = interestRateStressRow(result, delta);
-                        return (
-                          <tr key={delta} style={{ borderBottom: "1px solid #8F8770", background: delta === 0 ? "#F1EEE5" : "transparent" }}>
-                            <td style={{ padding: "6px 4px" }}>{delta === 0 ? `현재 금리 ${row.newRate.toFixed(1)}% (가정치)` : `+${delta}%p (${row.newRate.toFixed(1)}%)`}</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(row.totalCost)}만원</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.profit > 0 ? "#2F6F5E" : "#9C3B34" }}>{fmt(row.profit)}만원</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{row.margin.toFixed(1)}%</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.dscr != null && row.dscr < 1 ? "#9C3B34" : "#332818" }}>{row.dscr != null ? row.dscr.toFixed(2) + "x" : "-"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <StressTestTable
+                    topMargin={12}
+                    title="금리 상승 스트레스 테스트"
+                    warning="⚠️ 단순화 가정: 대출금액·분양수입은 고정하고 대출금리만 변동시킨 것입니다(대출금액 재산정은 반영 안 함)."
+                    scenarioLabel="금리 시나리오" col2Label="총사업비"
+                    rows={[0, 1, 3, 5].map((delta) => {
+                      const row = interestRateStressRow(result, delta);
+                      return {
+                        key: delta,
+                        label: delta === 0 ? `현재 금리 ${row.newRate.toFixed(1)}% (가정치)` : `+${delta}%p (${row.newRate.toFixed(1)}%)`,
+                        highlight: delta === 0,
+                        col2Value: row.totalCost, profit: row.profit, margin: row.margin, dscr: row.dscr,
+                      };
+                    })}
+                  />
 
-                  <h2 style={{ fontSize: 15, marginTop: 12, marginBottom: 4, color: "#1F1C14" }}>공사비 상승 스트레스 테스트</h2>
-                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
-                    ⚠️ 단순화 가정: 대출금액·금리·분양수입은 고정하고 공사비 초과분만큼 사업수지가 그대로 악화된다고 가정한 것입니다
-                    (대출금액 재산정, 소프트비용 연동 재계산은 반영 안 함).
-                  </div>
-                  <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse", marginBottom: 20 }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #7A7058", fontWeight: 600, color: "#332F24" }}>
-                        <td style={{ padding: "6px 4px" }}>공사비 시나리오</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>총사업비</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>사업수지</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>수익률</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>DSCR</td>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[0, 5, 10, 15].map((overrun) => {
-                        const row = costOverrunStressRow(result, overrun);
-                        return (
-                          <tr key={overrun} style={{ borderBottom: "1px solid #8F8770", background: overrun === 0 ? "#F1EEE5" : "transparent" }}>
-                            <td style={{ padding: "6px 4px" }}>{overrun === 0 ? "현재 공사비 (가정치)" : `공사비 +${overrun}%`}</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(row.totalCost)}만원</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.profit > 0 ? "#2F6F5E" : "#9C3B34" }}>{fmt(row.profit)}만원</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>{row.margin.toFixed(1)}%</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right", color: row.dscr != null && row.dscr < 1 ? "#9C3B34" : "#332818" }}>{row.dscr != null ? row.dscr.toFixed(2) + "x" : "-"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <StressTestTable
+                    topMargin={12}
+                    title="공사비 상승 스트레스 테스트"
+                    warning="⚠️ 단순화 가정: 대출금액·금리·분양수입은 고정하고 공사비 초과분만큼 사업수지가 그대로 악화된다고 가정한 것입니다 (대출금액 재산정, 소프트비용 연동 재계산은 반영 안 함)."
+                    scenarioLabel="공사비 시나리오" col2Label="총사업비"
+                    rows={[0, 5, 10, 15].map((overrun) => {
+                      const row = costOverrunStressRow(result, overrun);
+                      return {
+                        key: overrun,
+                        label: overrun === 0 ? "현재 공사비 (가정치)" : `공사비 +${overrun}%`,
+                        highlight: overrun === 0,
+                        col2Value: row.totalCost, profit: row.profit, margin: row.margin, dscr: row.dscr,
+                      };
+                    })}
+                  />
 
                   <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>7. AI 종합의견</h2>
                   <div style={{ background: "#F1EEE5", border: `1.5px solid ${result.gradeColor}`, borderRadius: 5, padding: "16px 18px" }}>
