@@ -1,0 +1,32 @@
+{
+  "id": "case-008",
+  "caseName": "익산 유은센텀시티 — 착공 2년 만에 5층 미만에서 전면 중단된 27층 민간임대아파트",
+  "status": "verified",
+  "source": "Daum(연합뉴스 계열) 기사(https://v.daum.net/v/20250625180006559, 2026-07-22 확인) + HUG 공매정보(data.go.kr 15134035, 2025-12-09 스냅샷 CSV, 사용자가 직접 다운로드해 제공) — 위치(전라북도 익산시 중앙동3가 50), 토지매각면적 2,131.7㎡·건축물면적 14,833.57㎡(HUG 공매정보), 27층 136가구 민간임대아파트, 2021년 4월 착공·2023년 10월 입주예정이었으나 시행사 자금난으로 5층 미만에서 전면 중단, 타워크레인 약 2년간 가동 중지는 기사에 명시된 실제 수치. 같은 기사에서 HUG 보증사고 사업장이 2023년 16곳→2024년 17곳으로 늘었고 현재 16곳이 매각 추진 중이라는 업계 전반 통계도 확인됨. 정확한 용도지역·시행사명·PF 대출조건(금리·자기자본비율 등)은 비공개라 앱의 기본 미정값을 사용.",
+  "input": {
+    "address": "전라북도 익산시 중앙동3가 50",
+    "area": "2131.7",
+    "zone": "일반상업지역",
+    "projectType": "신축개발",
+    "lender": "부동산신탁사",
+    "developerTrack": "미정(정보 없음)",
+    "contractorGrade": "미정(정보 없음)",
+    "locationTier": "일반 도시",
+    "supplyCompetition": "미확인(정보 없음)",
+    "creditEnhancement": "신용보강 없음/미확인",
+    "permitStage": "진행 중",
+    "expectedSaleRate": "80",
+    "equityRatio": "20",
+    "interestRate": "9.0",
+    "originationFee": "1.0",
+    "loanTermMonths": "27"
+  },
+  "actual": {
+    "totalCost": null,
+    "salesRate": null,
+    "outcome": "default",
+    "actualGrade": null,
+    "notes": "2021년 4월 착공, 2023년 10월 입주 예정이었던 27층 136가구 민간임대아파트. 시행사 자금난으로 공사가 전면 중단되어 5층 미만 수준에서 멈췄고, 타워크레인이 약 2년간 가동을 멈춘 채 방치됨. HUG가 보증사고로 회수해 공매 진행 중."
+  },
+  "aiResult": null
+}

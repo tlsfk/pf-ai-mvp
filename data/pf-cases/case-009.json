@@ -1,0 +1,32 @@
+{
+  "id": "case-009",
+  "caseName": "익산 라포엠 더 시티 — 하도급대금 미지급으로 저층부만 남고 중단된 장기전세아파트",
+  "status": "verified",
+  "source": "Daum(연합뉴스 계열) 기사(https://v.daum.net/v/20250625180006559) + 지역언론(익산·전민·인천일보 등, '남중동 라포엠 더 시티' 분양 관련 보도, 2026-07-22 확인) + HUG 공매정보(data.go.kr 15134035, 2025-12-09 스냅샷 CSV, 사용자가 직접 다운로드해 제공) — 위치(전라북도 익산시 남중동 169-1), 토지매각면적 5,336㎡·건축물면적 15,658.89㎡(HUG 공매정보), 민간 장기전세아파트로 2024년 6월 완공 예정이었으나 시공사가 하도급업체 대금을 지급하지 못해 공사 중단, 저층부 뼈대만 남은 상태는 기사에 명시된 실제 내용. HUG가 보증사고로 회수해 공매 진행 중. 정확한 용도지역·시행사명·PF 대출조건(금리·자기자본비율 등)은 비공개라 앱의 기본 미정값을 사용.",
+  "input": {
+    "address": "전라북도 익산시 남중동 169-1",
+    "area": "5336",
+    "zone": "준주거지역",
+    "projectType": "신축개발",
+    "lender": "저축은행",
+    "developerTrack": "미정(정보 없음)",
+    "contractorGrade": "미정(정보 없음)",
+    "locationTier": "일반 도시",
+    "supplyCompetition": "미확인(정보 없음)",
+    "creditEnhancement": "신용보강 없음/미확인",
+    "permitStage": "진행 중",
+    "expectedSaleRate": "80",
+    "equityRatio": "20",
+    "interestRate": "9.0",
+    "originationFee": "1.0",
+    "loanTermMonths": "27"
+  },
+  "actual": {
+    "totalCost": null,
+    "salesRate": null,
+    "outcome": "default",
+    "actualGrade": null,
+    "notes": "민간 장기전세아파트로 2024년 6월 완공 예정이었으나, 시공사가 하도급업체에 공사대금을 지급하지 못하면서 공사가 중단됨. 저층부 뼈대만 남은 상태로 방치되었고, HUG가 보증사고 처리 후 공매를 진행 중."
+  },
+  "aiResult": null
+}
