@@ -1,32 +1,32 @@
 {
   "id": "case-004",
-  "caseName": "더미 예시: 지방 신축개발, 시행사 부도 시나리오",
-  "status": "dummy",
-  "source": "실제 사례 아님 — 부실(부도) 케이스 자리표시자. 향후 실제 계약서/공시자료로 교체 예정",
+  "caseName": "제주 조천 레이크샤이어 공동주택 — 보증사고 후 5년째 미준공·공매 진행 사례",
+  "status": "verified",
+  "source": "제주의소리 기사(https://www.jejusori.net/news/articleView.html?idxno=434251, 2026-07-22 확인). 대지면적(4,694㎡)·연면적(6,325㎡)·규모(지상4층 38세대)·보증사고 지정일(2020-05)·공매 이력(1차 2022-11 최저가 123억1,400만원 유찰, 2~3차 2023~2024 최저가 115억5,995만원 유찰, 예상 최저가 80억7,973만원, 2025-03 재추진 예정)은 이 기사에 명시된 실제 수치. 정확한 지번주소·용도지역·시행사/시공사명·PF 금융조건(금리·자기자본비율·대출기간·신용보강 등)은 기사에 없어 공개자료로 확인하지 못함 — 이 필드들은 앱의 기본 미정값(PLACEHOLDER_DEFAULTS)을 그대로 사용했으며 실제 조건이 아님에 유의.",
   "input": {
-    "address": "충청남도 서산시 000",
-    "area": "3000",
-    "zone": "일반상업지역",
+    "address": "제주특별자치도 제주시 조천읍",
+    "area": "4694",
+    "zone": "제2종일반주거지역",
     "projectType": "신축개발",
-    "lender": "자산운용사",
-    "developerTrack": "신설·실적 부족",
-    "contractorGrade": "소형",
-    "locationTier": "수요 부족 지역",
-    "supplyCompetition": "공급 과다",
+    "lender": "부동산신탁사",
+    "developerTrack": "미정(정보 없음)",
+    "contractorGrade": "미정(정보 없음)",
+    "locationTier": "일반 도시",
+    "supplyCompetition": "미확인(정보 없음)",
     "creditEnhancement": "신용보강 없음/미확인",
-    "permitStage": "초기 단계",
-    "expectedSaleRate": "55",
-    "equityRatio": "8",
-    "interestRate": "13.0",
-    "originationFee": "2.5",
-    "loanTermMonths": "24"
+    "permitStage": "진행 중",
+    "expectedSaleRate": "80",
+    "equityRatio": "20",
+    "interestRate": "9.0",
+    "originationFee": "1.0",
+    "loanTermMonths": "27"
   },
   "actual": {
     "totalCost": null,
-    "salesRate": 12,
+    "salesRate": null,
     "outcome": "default",
     "actualGrade": null,
-    "notes": "더미 데이터 — 초기 분양 실패로 시행사 자금난, PF 대출 부실화를 가정한 예시(고위험 케이스 검증용)."
+    "notes": "2016년 부지 매입, 2017년 분양 개시. 분양 이후 자금난으로 공사가 중단되었고 2020년 5월 HUG 보증사고 사업장으로 지정됨. 공정률 98%까지 진행되었으나 이후 5년 넘게 미준공 상태로 방치. 2022년 11월부터 공매가 3회 진행되었으나 전부 유찰(최저입찰가 123억1,400만원 → 115억5,995만원), 2025년 3월부터 예상 최저가 80억7,973만원으로 공매 재추진 예정."
   },
   "aiResult": null
 }
