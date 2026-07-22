@@ -121,8 +121,8 @@ function runAnalysis(
   {
     address, area, zone, projectType, lender, developerTrack, contractorGrade, locationTier,
     supplyCompetition, creditEnhancement, permitStage, expectedSaleRate, equityRatio, interestRate, originationFee, loanTermMonths,
-    totalCostOverride, constructionCostPerPyInput, softCostMode, softCostRatioInput,
-    designFee, supervisionFee, salesCost, contingency,
+    totalCostOverride, landCostOverride, constructionCostPerPyInput, softCostMode, softCostRatioInput,
+    designFee, supervisionFee, salesCost, contingency, demolitionCost, leviesCost, miscCost,
   },
   realPricePerPy = null,
   compsCount = 0
@@ -150,16 +150,20 @@ function runAnalysis(
   const constructionCostPerPy = constructionCostPerPyUser > 0 ? constructionCostPerPyUser : DEFAULT_CONSTRUCTION_COST_PER_PY;
   const constructionCostSource = constructionCostPerPyUser > 0 ? "사용자 입력값" : "기본값(근거 없음, 미입력)";
 
-  const landCost = landAreaPy * landPricePerPy;
+  // 토지매입비: 사용자가 총액을 직접 입력하면 그 값을, 아니면 평당 토지가 기반 자동계산값을 사용
+  const landCostOverrideNum = Number(landCostOverride);
+  const landCost = landCostOverrideNum > 0 ? landCostOverrideNum : landAreaPy * landPricePerPy;
+  const landCostSource = landCostOverrideNum > 0 ? "사용자 입력값(총액)" : (usingRealData ? "국토교통부 실거래가 역산" : "가정치(근거 없음, 미입력)");
   const constructionCost = grossFloorPy * constructionCostPerPy;
 
-  // 소프트코스트: "비율" 모드(%) 또는 "항목별" 모드(설계비/감리비/분양비/예비비 직접입력) 중 선택
+  // 소프트코스트: "비율" 모드(%) 또는 "항목별" 모드(철거비/설계비/감리비/분양마케팅비/부담금/예비비/기타 직접입력) 중 선택
   // ※ "금융비"는 여기 포함하지 않습니다 — 아래에서 실제 대출조건 기반으로 별도 계산되는
   //   financeCost와 중복 계상되는 것을 막기 위함입니다.
   let generalCost, generalCostSource;
   if (softCostMode === "itemized") {
-    generalCost = (Number(designFee) || 0) + (Number(supervisionFee) || 0) + (Number(salesCost) || 0) + (Number(contingency) || 0);
-    generalCostSource = "사용자 입력값(설계비+감리비+분양비+예비비 합산)";
+    generalCost = (Number(demolitionCost) || 0) + (Number(designFee) || 0) + (Number(supervisionFee) || 0)
+      + (Number(salesCost) || 0) + (Number(leviesCost) || 0) + (Number(contingency) || 0) + (Number(miscCost) || 0);
+    generalCostSource = "사용자 입력값(철거비+설계비+감리비+분양마케팅비+부담금+예비비+기타 합산)";
   } else {
     const ratioUser = Number(softCostRatioInput);
     const ratio = ratioUser > 0 ? ratioUser / 100 : DEFAULT_SOFT_COST_RATIO;
@@ -222,7 +226,7 @@ function runAnalysis(
   const collateralRef = collateralTier(ltv);
 
   return {
-    landAreaPy, grossFloorPy, landPricePerPy, salesPricePerPy, constructionCostPerPy, constructionCostSource,
+    landAreaPy, grossFloorPy, landPricePerPy, salesPricePerPy, constructionCostPerPy, constructionCostSource, landCostSource,
     landCost, constructionCost, generalCost, generalCostSource, financeCost, totalCost, totalCostSource,
     usingTotalCostOverride, loanAmount, equityAmount,
     salesRevenue, profit, margin, ltv, dscr, allInCost, interestRate, originationFee, loanTermMonths,
@@ -370,10 +374,11 @@ export default function PFReportMVP() {
     equityRatio: "20",
     loanTermMonths: "27",
     totalCostOverride: "", // 총사업비 직접입력(만원) - 비우면 자동계산
+    landCostOverride: "", // 토지매입비 직접입력(만원, 총액) - 비우면 평당 토지가 기반 자동계산
     constructionCostPerPyInput: "", // 평당 공사비 직접입력(만원) - 비우면 기본값(900)
     softCostMode: "ratio", // "ratio"(비율%) | "itemized"(항목별 직접입력)
     softCostRatioInput: "", // 비우면 기본값 15%
-    designFee: "", supervisionFee: "", salesCost: "", contingency: "", // 항목별 소프트코스트(만원)
+    demolitionCost: "", designFee: "", supervisionFee: "", salesCost: "", leviesCost: "", contingency: "", miscCost: "", // 항목별 소프트코스트(만원)
     ...PLACEHOLDER_DEFAULTS, // 근거 없는 자리표시자 값 — 위 상수 정의부 주석 참고
   });
   const [stage, setStage] = useState("idle"); // idle | running | done
@@ -461,6 +466,8 @@ export default function PFReportMVP() {
       ["DSCR(x)", result.dscr, "자체 계산"],
       ["All-in cost(%)", result.allInCost.toFixed(1), "자체 계산"],
       ["공사비(평당, 만원)", result.constructionCostPerPy, result.constructionCostSource],
+      ["토지매입비(만원)", Math.round(result.landCost), result.landCostSource],
+      ["일반관리비(만원)", Math.round(result.generalCost), result.generalCostSource],
       ["종합점수", result.scoreModel.totalScore.toFixed(1), `자체 산정(4개 카테고리 가중합산, 모델 v${result.scoreModel.version})`],
       ["종합등급", result.grade, "자체 산정"],
     ];
@@ -707,10 +714,14 @@ export default function PFReportMVP() {
                 <div style={{ fontSize: 11, color: "#9A9E9F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4, marginTop: 8 }}>
                   비용 직접입력 (선택 — 입력 시 자동계산보다 우선 적용)
                 </div>
-                <div className="field-grid2" style={{ marginBottom: 8 }}>
+                <div className="field-grid" style={{ marginBottom: 8 }}>
                   <div className="field">
                     <label>총사업비 직접입력 (만원)</label>
                     <input placeholder="비우면 자동계산" value={form.totalCostOverride} onChange={(e) => setForm({ ...form, totalCostOverride: e.target.value })} />
+                  </div>
+                  <div className="field">
+                    <label>토지매입비 직접입력 (만원, 총액)</label>
+                    <input placeholder="비우면 평당 토지가 기반 자동계산" value={form.landCostOverride} onChange={(e) => setForm({ ...form, landCostOverride: e.target.value })} />
                   </div>
                   <div className="field">
                     <label>평당 공사비 직접입력 (만원)</label>
@@ -721,7 +732,7 @@ export default function PFReportMVP() {
                   <label>소프트코스트(부대비용) 입력방식</label>
                   <select value={form.softCostMode} onChange={(e) => setForm({ ...form, softCostMode: e.target.value })}>
                     <option value="ratio">비율(%)로 입력</option>
-                    <option value="itemized">항목별 직접입력 (설계비·감리비·분양비·예비비)</option>
+                    <option value="itemized">항목별 직접입력 (철거비·설계비·감리비·분양마케팅비·부담금·예비비·기타)</option>
                   </select>
                 </div>
                 {form.softCostMode === "ratio" ? (
@@ -732,6 +743,10 @@ export default function PFReportMVP() {
                 ) : (
                   <div className="field-grid" style={{ marginBottom: 8 }}>
                     <div className="field">
+                      <label>철거비 (만원)</label>
+                      <input value={form.demolitionCost} onChange={(e) => setForm({ ...form, demolitionCost: e.target.value })} />
+                    </div>
+                    <div className="field">
                       <label>설계비 (만원)</label>
                       <input value={form.designFee} onChange={(e) => setForm({ ...form, designFee: e.target.value })} />
                     </div>
@@ -740,12 +755,20 @@ export default function PFReportMVP() {
                       <input value={form.supervisionFee} onChange={(e) => setForm({ ...form, supervisionFee: e.target.value })} />
                     </div>
                     <div className="field">
-                      <label>분양비 (만원)</label>
+                      <label>분양마케팅비 (만원)</label>
                       <input value={form.salesCost} onChange={(e) => setForm({ ...form, salesCost: e.target.value })} />
+                    </div>
+                    <div className="field">
+                      <label>각종 부담금 (만원)</label>
+                      <input value={form.leviesCost} onChange={(e) => setForm({ ...form, leviesCost: e.target.value })} />
                     </div>
                     <div className="field">
                       <label>예비비 (만원)</label>
                       <input value={form.contingency} onChange={(e) => setForm({ ...form, contingency: e.target.value })} />
+                    </div>
+                    <div className="field">
+                      <label>기타 (만원)</label>
+                      <input value={form.miscCost} onChange={(e) => setForm({ ...form, miscCost: e.target.value })} />
                     </div>
                   </div>
                 )}
@@ -1173,7 +1196,7 @@ export default function PFReportMVP() {
                   <h2 style={{ fontSize: 15, marginTop: 28, marginBottom: 12, color: "#1F1C14" }}>4. 사업성 지표</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 4 }}>
                     출처: 총사업비({result.totalCostSource}) · 분양수입 평당가({dataNote?.ok ? "국토교통부 실거래가 API" : "가정치(실거래가 조회 실패)"}) ·
-                    공사비({result.constructionCostSource}) · 소프트비용({result.generalCostSource}) · 대출조건(사용자 입력 또는 기본값)
+                    토지매입비({result.landCostSource}) · 공사비({result.constructionCostSource}) · 소프트비용({result.generalCostSource}) · 대출조건(사용자 입력 또는 기본값)
                   </div>
                   <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse", marginBottom: 4 }}>
                     <tbody>
