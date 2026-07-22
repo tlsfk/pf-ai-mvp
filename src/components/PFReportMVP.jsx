@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { Building2, MapPin, FileDown, Loader2, ShieldCheck } from "lucide-react";
 import { fetchTrades, geocodeToPnu, fetchLandCharacteristics } from "../lib/realDataFetcher";
 import * as XLSX from "xlsx";
-import { addressToLawdCd, recentDealYmd, LAWD_CODES, AMBIGUOUS_GU } from "../lib/lawdCodes";
+import { addressToLawdCd, recentDealYmd, LAWD_CODES, AMBIGUOUS_GU, splitCityHint } from "../lib/lawdCodes";
 import {
   SCORING_MODEL_VERSION, TIER_COLOR, computeScoreModel,
   DEVELOPER_OPTIONS, CONTRACTOR_OPTIONS, LOCATION_OPTIONS, PERMIT_OPTIONS, SUPPLY_OPTIONS,
@@ -693,11 +693,12 @@ export default function PFReportMVP() {
               (() => {
                 const lawdCd = addressToLawdCd(form.address);
                 const regionLabel = lawdCd ? CODE_TO_REGION[lawdCd] : null;
+                const hint = !regionLabel ? splitCityHint(form.address) : null;
                 return (
                   <div style={{ fontSize: 11, marginBottom: 5, color: regionLabel ? "#8AB89A" : "#C98A6A" }}>
                     {regionLabel
                       ? `자동 인식: ${regionLabel} (법정동코드 ${lawdCd}) — 실거래가 조회에 사용됩니다.`
-                      : "구/군을 인식하지 못했습니다 — 실거래가는 가정치로 대체됩니다."}
+                      : hint || "구/군을 인식하지 못했습니다 — 실거래가는 가정치로 대체됩니다."}
                   </div>
                 );
               })()
