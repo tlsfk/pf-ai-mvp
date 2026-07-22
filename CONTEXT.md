@@ -78,13 +78,31 @@ PFReportMVP.jsx가 삭제된 함수를 호출해 빌드가 깨진 상태)을 마
 `npm run lint` + 회귀테스트(`test-scoring.mjs`) 통과 확인, 계획된 배점 조정 외에는
 scoring 엔진 로직 변경 없음.
 
+## PF 사례 검증 패널 (2026-07-22, 별도 세션)
+브레인스토밍 → 설계문서(`docs/superpowers/specs/2026-07-22-pf-case-validation-design.md`) →
+구현계획(`docs/superpowers/plans/2026-07-22-pf-case-validation.md`) → 서브에이전트 3태스크
+실행(태스크별 구현+리뷰) → 최종 브랜치 전체 리뷰 순으로 진행. `main`에 직접 커밋(이 프로젝트의
+기존 관행과 동일, 별도 feature 브랜치 없음).
+
+1. `runAnalysis` 계산 엔진을 `src/components/PFReportMVP.jsx`에서 `src/lib/analysis.js`로 분리
+   (순수 이동, 로직 변경 없음) — plain Node에서 직접 테스트 가능하게 하기 위한 선행 작업
+2. `src/lib/pfCases.js` 신설: `judgeCase()`가 사례 입력값으로 `runAnalysis`를 실행해 AI등급을
+   재현하고, 실제 결과(`actual.outcome`)와 규칙 기반으로 비교(일치/불일치/판정보류) — 회귀
+   테스트 `test-pf-cases.mjs` 추가
+3. `PFReportMVP.jsx`에 "PF 사례 검증" 토글 패널 추가(기존 "분석 이력" 패널과 동일 스타일).
+   패널을 처음 열 때만 5건을 계산해 캐시
+
+더미 5건 실행 결과: case-001(성공→AAA·일치), case-002(성공→BBB+·일치), case-003(지연→D·판정보류),
+case-004(부도→D·일치), case-005(미확정→BB·판정보류). 최종 리뷰 통과(Ready to merge: Yes, Critical/
+Important 없음). UI 패널 자체의 브라우저 육안 확인은 Chrome 확장 미연결로 미완료 — 한 번 확인 권장.
+
 ## 다음 단계 (이어서 할 일)
 1. V-World 용도지역 API 실제 연동(별도 키 발급 필요 — README.md 참고) — 지금은
    버튼 클릭 시 수동 조회만 가능(자동 트리거로 바꾸지 않음, 기존 흐름 유지 목적)
-2. `data/pf-cases`의 더미 5건을 실제 사례로 하나씩 교체 + AI결과 vs 실제결과
-   비교 로직/리포트 구현(README.md에 계획 명시)
-3. 2·3·4·6·7·9번 작업은 build/lint/스크립트 검증만 했고 실제 브라우저 화면에서
-   눈으로 확인은 못 함(Chrome 확장 미연결 상태였음) — 한 번씩 직접 확인 권장
+2. `data/pf-cases`의 더미 5건을 실제 사례로 하나씩 교체(비교 로직/UI는 완성됨 — 위 "PF 사례
+   검증 패널" 참고. JSON 파일만 실제 계약서/공시자료 근거로 교체하면 그대로 반영됨)
+3. 2·3·4·6·7·9번 작업(2026-07-22 대규모 세션분)은 build/lint/스크립트 검증만 했고 실제
+   브라우저 화면에서 눈으로 확인은 못 함(Chrome 확장 미연결 상태였음) — 한 번씩 직접 확인 권장
 4. 첫 고객 확보 채널 구체화 (신탁사·캐피탈 심사역에게 어떻게 접근할지)
 5. 가격/유닛 이코노믹스 정의 (기관용 라이선스 단가, CAC/LTV)
 6. AI가 만든 "사업성 분석 리포트"가 자본시장법상 유사투자자문업으로 해석될
