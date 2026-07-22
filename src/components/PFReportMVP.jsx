@@ -13,7 +13,7 @@ import { runAnalysis, ZONE_FAR, PLACEHOLDER_DEFAULTS, allInCostRate } from "../l
 import { loadCaseComparisons } from "../lib/pfCases";
 
 const OUTCOME_LABEL = { success: "성공", delayed: "지연", default: "부도", unknown: "미확정" };
-const VERDICT_COLOR = { 일치: "#8AB89A", 불일치: "#D98C7A", 판정보류: "#9A9E9F", "계산 실패": "#D98C7A" };
+const VERDICT_COLOR = { 일치: "#8AB89A", 불일치: "#D98C7A", 판정보류: "#3B4250", "계산 실패": "#D98C7A" };
 
 // 최종 심사의견 — 새 판정 로직이 아니라 기존 gradeBand(5단계)를 4개 실무 용어로 매핑만 함.
 // speculative·weak는 GRADE_META 자체가 이미 "투기적"·"고위험 재검토 권고"로 구분해뒀으므로 둘 다 "재검토"로,
@@ -627,21 +627,21 @@ export default function PFReportMVP() {
   };
 
   return (
-    <div style={{ fontFamily: "'IBM Plex Sans KR','IBM Plex Sans',sans-serif", minHeight: "100vh", background: "#12151A", color: "#E7E5DF" }}>
+    <div style={{ fontFamily: "'IBM Plex Sans KR','IBM Plex Sans',sans-serif", minHeight: "100vh", background: "#F3F4F6", color: "#1F2430" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
         * { box-sizing: border-box; }
         .field { display:flex; flex-direction:column; gap:2px; margin-bottom:5px; min-width:0; }
-        .field label { font-size:10px; letter-spacing:0.02em; color:#9A9E9F; text-transform:uppercase; }
+        .field label { font-size:10px; letter-spacing:0.02em; color:#3B4250; text-transform:uppercase; }
         .field input, .field select {
-          background:#1B2027; border:1px solid #2C333B; color:#E7E5DF; padding:6px 8px;
+          background:#FFFFFF; border:1px solid #C7CCD1; color:#1F2430; padding:6px 8px;
           border-radius:4px; font-size:12.5px; font-family:inherit; outline:none; width:100%; min-width:0; box-sizing:border-box;
         }
         .field-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:0 8px; }
         .field-grid2 { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:0 8px; }
-        .field input:focus, .field select:focus { border-color:#4C7A82; }
+        .field input:focus, .field select:focus { border-color:#1F3A5F; }
         .runbtn {
-          width:100%; padding:13px; background:#C9A34E; color:#14171C; border:none;
+          width:100%; padding:13px; background:#1F3A5F; color:#FFFFFF; border:none;
           border-radius:4px; font-weight:600; font-size:14px; letter-spacing:0.02em; cursor:pointer;
           display:flex; align-items:center; justify-content:center; gap:8px;
         }
@@ -667,16 +667,16 @@ export default function PFReportMVP() {
 
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px 40px" }}>
         <header style={{ marginBottom: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#C9A34E", fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#1F3A5F", fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase" }}>
             <Building2 size={14} /> Real Estate Decision OS — Prototype
           </div>
-          <h1 style={{ fontFamily: "'Source Serif 4', serif", fontSize: 22, margin: "6px 0 4px", fontWeight: 600 }}>
+          <h1 style={{ fontSize: 22, margin: "6px 0 4px", fontWeight: 700 }}>
             PF 사업성 심사 리포트 생성기
-            <span style={{ fontSize: 11, fontWeight: 600, color: "#C9A34E", border: "1px solid #C9A34E", borderRadius: 3, padding: "2px 8px", marginLeft: 10, verticalAlign: "middle" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#1F3A5F", border: "1px solid #1F3A5F", borderRadius: 3, padding: "2px 8px", marginLeft: 10, verticalAlign: "middle" }}>
               1차 타당성 검토용 (Quick Screening)
             </span>
           </h1>
-          <p style={{ color: "#9A9E9F", fontSize: 12.5, maxWidth: 640, lineHeight: 1.5 }}>
+          <p style={{ color: "#3B4250", fontSize: 12.5, maxWidth: 640, lineHeight: 1.5 }}>
             신탁사·캐피탈·자산운용사 심사역을 위한 MVP 데모입니다. 아래 입력값은 실제 국토부·브이월드·실거래가 API 연동 전 단계로,
             공개된 용도지역별 평균 용적률과 시세 가정을 바탕으로 한 추정 로직을 사용합니다.
           </p>
@@ -684,7 +684,7 @@ export default function PFReportMVP() {
 
         <div className="app-grid" style={{ display: "grid", gridTemplateColumns: "35% 65%", gap: 24 }}>
           {/* input panel */}
-          <div className="input-panel" style={{ background: "#171B21", border: "1px solid #262C34", borderRadius: 6, padding: 18, alignSelf: "start" }}>
+          <div className="input-panel" style={{ background: "#FFFFFF", border: "1px solid #DDE1E6", borderRadius: 6, padding: 18, alignSelf: "start" }}>
             <div className="field">
               <label><MapPin size={11} style={{ marginRight: 4 }} />주소</label>
               <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} onBlur={handleAddressBlur} />
@@ -704,7 +704,7 @@ export default function PFReportMVP() {
               })()
             )}
             {vworldStatus === "loading" && (
-              <div style={{ fontSize: 11, marginBottom: 5, color: "#9A9E9F" }}>브이월드로 용도지역·공시지가 조회 중…</div>
+              <div style={{ fontSize: 11, marginBottom: 5, color: "#3B4250" }}>브이월드로 용도지역·공시지가 조회 중…</div>
             )}
             {vworldStatus && vworldStatus !== "loading" && (
               <div style={{ fontSize: 11, marginBottom: 5, lineHeight: 1.5, color: vworldStatus.ok ? "#8AB89A" : "#C98A6A" }}>
@@ -713,7 +713,7 @@ export default function PFReportMVP() {
                   : `실패: ${vworldStatus.reason}`}
               </div>
             )}
-            <div style={{ fontSize: 11, color: "#9A9E9F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: "#3B4250", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>
               기본 정보
             </div>
             <div className="field-grid2">
@@ -729,13 +729,13 @@ export default function PFReportMVP() {
               </div>
             </div>
             {form.area && ZONE_FAR[form.zone] && (
-              <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: "#3B4250", marginBottom: 10 }}>
                 연면적(자동계산): 약 {Math.round((Number(form.area) / 3.3058) * (ZONE_FAR[form.zone] / 100)).toLocaleString("ko-KR")}평
-                ({Math.round(Number(form.area) * (ZONE_FAR[form.zone] / 100)).toLocaleString("ko-KR")}㎡) — 용도지역·심사대상기관은 고급 설정, 법정 용적률 {ZONE_FAR[form.zone]}% 기준
+                ({Math.round(Number(form.area) * (ZONE_FAR[form.zone] / 100)).toLocaleString("ko-KR")}㎡, 용적률 {ZONE_FAR[form.zone]}%)
               </div>
             )}
 
-            <div style={{ fontSize: 11, color: "#9A9E9F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4, marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: "#3B4250", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4, marginTop: 4 }}>
               필수 금융정보
             </div>
             <div className="field-grid2" style={{ marginBottom: 6 }}>
@@ -749,24 +749,20 @@ export default function PFReportMVP() {
               </div>
             </div>
             {form.totalCostOverride && Number(form.totalCostOverride) > 0 ? (
-              <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: "#3B4250", marginBottom: 6 }}>
                 PF 대출금(자동계산): 약 {fmt(Number(form.totalCostOverride) * (1 - Number(form.equityRatio) / 100))}만원 (총사업비 − 자기자본)
               </div>
             ) : (
-              <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: "#3B4250", marginBottom: 6 }}>
                 PF 대출금: 총사업비를 자동계산하는 경우, 분석 실행 후 리포트에 정확한 금액이 표시됩니다.
               </div>
             )}
-            <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 6, lineHeight: 1.5 }}>
-              용도지역·심사대상기관·인허가 단계·대출기간·시행사 실적·시공사 등급·입지·공급경쟁·신용보강구조·분양률·대출금리·취급수수료·공사비는
-              기본적으로 임의값이 사용됩니다. 실제 값을 아신다면 아래 고급 설정에서 직접 입력해주세요.
-            </div>
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
-              style={{ background: "none", border: "none", color: "#C9A34E", fontSize: 12, cursor: "pointer", padding: "4px 0", marginBottom: 8, textDecoration: "underline" }}
+              style={{ background: "none", border: "none", color: "#1F3A5F", fontSize: 12, cursor: "pointer", padding: "4px 0", marginBottom: 8, textDecoration: "underline" }}
             >
-              {showAdvanced ? "고급 설정 접기" : "고급 설정 펼치기 (실제 값 직접 입력)"}
+              {showAdvanced ? "고급 설정 접기" : "고급 설정 펼치기"}
             </button>
             {showAdvanced && (
               <div className="field-grid" style={{ marginBottom: 10 }}>
@@ -838,11 +834,11 @@ export default function PFReportMVP() {
             )}
             {showAdvanced && (
               <>
-                <div style={{ fontSize: 11, color: "#9A9E9F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4, marginTop: 8 }}>
+                <div style={{ fontSize: 11, color: "#3B4250", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4, marginTop: 8 }}>
                   비용 직접입력 (선택 — 입력 시 자동계산보다 우선 적용)
                 </div>
-                <div style={{ fontSize: 10.5, color: "#7A7666", marginBottom: 6, lineHeight: 1.5 }}>
-                  ※ 분양가는 별도 직접입력 항목이 없습니다 — 실거래가 자동조회에 성공하면 그 값을, 실패하면 토지 평당가 기반 가정치를 그대로 분양가로 사용합니다(분석 실행 후 리포트에 표시).
+                <div style={{ fontSize: 10.5, color: "#3B4250", marginBottom: 6, lineHeight: 1.5 }}>
+                  ※ 분양가: 실거래가 조회 성공 시 그 값, 실패 시 토지 평당가 기반 가정치 사용 (리포트에 표시)
                 </div>
                 <div className="field-grid" style={{ marginBottom: 8 }}>
                   <div className="field">
@@ -898,7 +894,7 @@ export default function PFReportMVP() {
                     </div>
                   </div>
                 )}
-                <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 10, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11, color: "#3B4250", marginBottom: 10, lineHeight: 1.5 }}>
                   ※ “금융비”는 여기 포함하지 않습니다 — 대출조건(금리·수수료·기간) 기반으로 별도 계산되어
                   아래 “금융비용” 항목에 반영되며, 여기서 중복 입력하면 이중 계상됩니다.
                 </div>
@@ -914,9 +910,9 @@ export default function PFReportMVP() {
             </button>
 
             {stage === "running" && (
-              <div style={{ marginTop: 18, fontSize: 13, color: "#9A9E9F" }}>
+              <div style={{ marginTop: 18, fontSize: 13, color: "#3B4250" }}>
                 {steps.map((s, i) => (
-                  <div key={s} style={{ padding: "4px 0", color: i < step ? "#4C7A82" : "#565C64" }}>
+                  <div key={s} style={{ padding: "4px 0", color: i < step ? "#1F3A5F" : "#9CA3AF" }}>
                     {i < step ? "✓" : "…"} {s}
                   </div>
                 ))}
@@ -926,29 +922,29 @@ export default function PFReportMVP() {
             <button
               type="button"
               onClick={() => setShowHistory((v) => !v)}
-              style={{ background: "none", border: "1px solid #4C7A82", color: "#7CB0B8", fontSize: 11, cursor: "pointer", padding: "6px 10px", marginTop: 12, borderRadius: 4, width: "100%" }}
+              style={{ background: "none", border: "1px solid #1F3A5F", color: "#1F3A5F", fontSize: 11, cursor: "pointer", padding: "6px 10px", marginTop: 12, borderRadius: 4, width: "100%" }}
             >
               분석 이력 {showHistory ? "접기" : `보기 (${historyList.length})`}
             </button>
             {showHistory && (
-              <div style={{ marginTop: 8, border: "1px solid #262C34", borderRadius: 4, padding: 10, maxHeight: 320, overflowY: "auto" }}>
+              <div style={{ marginTop: 8, border: "1px solid #DDE1E6", borderRadius: 4, padding: 10, maxHeight: 320, overflowY: "auto" }}>
                 <input
                   placeholder="주소 검색"
                   value={historySearch}
                   onChange={(e) => setHistorySearch(e.target.value)}
-                  style={{ width: "100%", marginBottom: 8, background: "#1B2027", border: "1px solid #2C333B", color: "#E7E5DF", padding: "5px 8px", borderRadius: 4, fontSize: 12, boxSizing: "border-box" }}
+                  style={{ width: "100%", marginBottom: 8, background: "#FFFFFF", border: "1px solid #C7CCD1", color: "#1F2430", padding: "5px 8px", borderRadius: 4, fontSize: 12, boxSizing: "border-box" }}
                 />
                 {filteredHistory.length === 0 ? (
-                  <div style={{ fontSize: 12, color: "#6B7078" }}>저장된 분석 이력이 없습니다.</div>
+                  <div style={{ fontSize: 12, color: "#3B4250" }}>저장된 분석 이력이 없습니다.</div>
                 ) : filteredHistory.map(({ record, index }) => (
-                  <div key={index} style={{ borderBottom: "1px solid #262C34", padding: "8px 0" }}>
-                    <div style={{ fontSize: 12, color: "#E7E5DF", fontWeight: 600 }}>{record.input?.address || "주소 없음"}</div>
-                    <div style={{ fontSize: 11, color: "#9A9E9F" }}>
+                  <div key={index} style={{ borderBottom: "1px solid #DDE1E6", padding: "8px 0" }}>
+                    <div style={{ fontSize: 12, color: "#1F2430", fontWeight: 600 }}>{record.input?.address || "주소 없음"}</div>
+                    <div style={{ fontSize: 11, color: "#3B4250" }}>
                       {new Date(record.createdAt).toLocaleString("ko-KR")} · 등급 {record.score?.grade} ({record.score?.total?.toFixed(1)}점)
                     </div>
                     <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                      <button type="button" onClick={() => handleHistoryLoad(record)} style={{ fontSize: 11, background: "none", border: "1px solid #333B45", color: "#9A9E9F", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>불러오기</button>
-                      <button type="button" onClick={() => handleHistoryReanalyze(record)} style={{ fontSize: 11, background: "none", border: "1px solid #4C7A82", color: "#7CB0B8", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>재분석</button>
+                      <button type="button" onClick={() => handleHistoryLoad(record)} style={{ fontSize: 11, background: "none", border: "1px solid #C7CCD1", color: "#3B4250", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>불러오기</button>
+                      <button type="button" onClick={() => handleHistoryReanalyze(record)} style={{ fontSize: 11, background: "none", border: "1px solid #1F3A5F", color: "#1F3A5F", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>재분석</button>
                       <button type="button" onClick={() => handleHistoryDelete(index)} style={{ fontSize: 11, background: "none", border: "1px solid #9C3B34", color: "#D98C7A", borderRadius: 3, padding: "3px 8px", cursor: "pointer" }}>삭제</button>
                     </div>
                   </div>
@@ -962,24 +958,24 @@ export default function PFReportMVP() {
                 setShowCaseValidation((v) => !v);
                 if (!caseComparisons) setCaseComparisons(loadCaseComparisons());
               }}
-              style={{ background: "none", border: "1px solid #4C7A82", color: "#7CB0B8", fontSize: 11, cursor: "pointer", padding: "6px 10px", marginTop: 8, borderRadius: 4, width: "100%" }}
+              style={{ background: "none", border: "1px solid #1F3A5F", color: "#1F3A5F", fontSize: 11, cursor: "pointer", padding: "6px 10px", marginTop: 8, borderRadius: 4, width: "100%" }}
             >
               PF 사례 검증 {showCaseValidation ? "접기" : "보기"}
             </button>
             {showCaseValidation && (
-              <div style={{ marginTop: 8, border: "1px solid #262C34", borderRadius: 4, padding: 10, maxHeight: 360, overflowY: "auto" }}>
-                <div style={{ fontSize: 10.5, color: "#6B7078", marginBottom: 8, lineHeight: 1.5 }}>
+              <div style={{ marginTop: 8, border: "1px solid #DDE1E6", borderRadius: 4, padding: 10, maxHeight: 360, overflowY: "auto" }}>
+                <div style={{ fontSize: 10.5, color: "#3B4250", marginBottom: 8, lineHeight: 1.5 }}>
                   AI가 각 사례의 입력값으로 산출한 등급과 실제 사업결과를 비교합니다. 총 {(caseComparisons || []).length}건 중{" "}
                   {(caseComparisons || []).filter((c) => c.status === "verified").length}건은 실제 사례, 나머지는 더미 데이터입니다.
                 </div>
                 {(caseComparisons || []).map((c) => (
-                  <div key={c.id} style={{ borderBottom: "1px solid #262C34", padding: "8px 0" }}>
-                    <div style={{ fontSize: 12, color: "#E7E5DF", fontWeight: 600 }}>
-                      {c.caseName} <span style={{ fontSize: 10, fontWeight: 400, color: "#6B7078" }}>({c.status === "verified" ? "실제" : "더미"})</span>
+                  <div key={c.id} style={{ borderBottom: "1px solid #DDE1E6", padding: "8px 0" }}>
+                    <div style={{ fontSize: 12, color: "#1F2430", fontWeight: 600 }}>
+                      {c.caseName} <span style={{ fontSize: 10, fontWeight: 400, color: "#3B4250" }}>({c.status === "verified" ? "실제" : "더미"})</span>
                     </div>
-                    <div style={{ fontSize: 11, color: "#9A9E9F", marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: "#3B4250", marginTop: 2 }}>
                       AI등급 {c.grade ?? "계산 실패"} · 실제결과 {OUTCOME_LABEL[c.outcome] || c.outcome} ·{" "}
-                      <span style={{ color: VERDICT_COLOR[c.verdict] || "#9A9E9F", fontWeight: 600 }}>{c.verdict}</span>
+                      <span style={{ color: VERDICT_COLOR[c.verdict] || "#3B4250", fontWeight: 600 }}>{c.verdict}</span>
                     </div>
                     {c.error && <div style={{ fontSize: 10.5, color: "#D98C7A", marginTop: 2 }}>오류: {c.error}</div>}
                   </div>
@@ -991,7 +987,7 @@ export default function PFReportMVP() {
           {/* report */}
           <div>
             {stage !== "done" && (
-              <div style={{ border: "1px dashed #2C333B", borderRadius: 6, padding: 60, textAlign: "center", color: "#5A5F66" }}>
+              <div style={{ border: "1px dashed #C7CCD1", borderRadius: 6, padding: 60, textAlign: "center", color: "#3B4250" }}>
                 좌측 입력값으로 &lsquo;사업성 분석 실행&rsquo;을 누르면 심사 리포트가 이 영역에 생성됩니다.
               </div>
             )}
@@ -999,13 +995,13 @@ export default function PFReportMVP() {
             {stage === "done" && result && (
               <div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12 }}>
-                  <button onClick={() => setExpanded((v) => !v)} className="runbtn" style={{ width: "auto", padding: "9px 16px", background: "#232A32", color: "#E7E5DF", border: "1px solid #333B45" }}>
+                  <button onClick={() => setExpanded((v) => !v)} className="runbtn" style={{ width: "auto", padding: "9px 16px", background: "#EDEEF1", color: "#1F2430", border: "1px solid #C7CCD1" }}>
                     {expanded ? "요약만 보기" : "전체 리포트 보기"}
                   </button>
-                  <button onClick={handleExcelExport} className="runbtn" style={{ width: "auto", padding: "9px 16px", background: "#232A32", color: "#E7E5DF", border: "1px solid #333B45" }}>
+                  <button onClick={handleExcelExport} className="runbtn" style={{ width: "auto", padding: "9px 16px", background: "#EDEEF1", color: "#1F2430", border: "1px solid #C7CCD1" }}>
                     <FileDown size={15} /> 엑셀 다운로드
                   </button>
-                  <button onClick={handleDownload} className="runbtn" style={{ width: "auto", padding: "9px 16px", background: "#C9A34E", color: "#14171C", border: "none" }}>
+                  <button onClick={handleDownload} className="runbtn" style={{ width: "auto", padding: "9px 16px", background: "#1F3A5F", color: "#FFFFFF", border: "none" }}>
                     <FileDown size={15} /> PDF로 다운로드
                   </button>
                 </div>
@@ -1455,7 +1451,7 @@ export default function PFReportMVP() {
           </div>
         </div>
 
-        <footer style={{ marginTop: 40, paddingTop: 16, borderTop: "1px solid #262C34", fontSize: 11, color: "#6B7078", lineHeight: 1.6 }}>
+        <footer style={{ marginTop: 40, paddingTop: 16, borderTop: "1px solid #DDE1E6", fontSize: 11, color: "#3B4250", lineHeight: 1.6 }}>
           본 서비스는 부동산 PF 사업성에 대한 1차 검토(Quick Screening)를 지원하는 참고도구입니다.
           투자권유 또는 투자자문을 제공하지 않습니다. 최종 투자 판단은 이용자 본인의 책임이며 전문가 검토를 권장합니다.
         </footer>
