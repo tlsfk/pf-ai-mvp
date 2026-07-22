@@ -693,6 +693,9 @@ export default function PFReportMVP() {
                   : `실패: ${vworldStatus.reason}`}
               </div>
             )}
+            <div style={{ fontSize: 11, color: "#9A9E9F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>
+              기본 정보
+            </div>
             <div className="field-grid2">
               <div className="field">
                 <label>대지면적 (㎡)</label>
@@ -717,25 +720,29 @@ export default function PFReportMVP() {
                 </select>
               </div>
             </div>
-            <div className="field-grid">
+            {form.area && ZONE_FAR[form.zone] && (
+              <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 10 }}>
+                연면적(자동계산): 약 {Math.round((Number(form.area) / 3.3058) * (ZONE_FAR[form.zone] / 100)).toLocaleString("ko-KR")}평
+                ({Math.round(Number(form.area) * (ZONE_FAR[form.zone] / 100)).toLocaleString("ko-KR")}㎡) — 법정 용적률 {ZONE_FAR[form.zone]}% 기준
+              </div>
+            )}
+
+            <div style={{ fontSize: 11, color: "#9A9E9F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4, marginTop: 4 }}>
+              필수 금융정보
+            </div>
+            <div className="field-grid2" style={{ marginBottom: 6 }}>
               <div className="field">
-                <label>인허가 단계</label>
-                <select value={form.permitStage} onChange={(e) => setForm({ ...form, permitStage: e.target.value })}>
-                  {PERMIT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
-                </select>
+                <label>총사업비 (만원)</label>
+                <input placeholder="비우면 자동계산" value={form.totalCostOverride} onChange={(e) => setForm({ ...form, totalCostOverride: e.target.value })} />
               </div>
               <div className="field">
                 <label>자기자본비율 (%)</label>
                 <input type="number" min="0" max="100" value={form.equityRatio} onChange={(e) => setForm({ ...form, equityRatio: e.target.value })} />
               </div>
-              <div className="field">
-                <label>대출기간 (개월)</label>
-                <input type="number" min="1" max="360" value={form.loanTermMonths} onChange={(e) => setForm({ ...form, loanTermMonths: e.target.value })} />
-              </div>
             </div>
             <div style={{ fontSize: 11, color: "#7A7666", marginBottom: 6, lineHeight: 1.5 }}>
-              시행사 실적·시공사 등급·입지·공급경쟁·신용보강구조·분양률·대출금리·취급수수료는 기본적으로 임의값(보통·중견·일반 도시·미확인·미확인·80%·9.0%·1.0%)이 사용됩니다.
-              실제 값을 아신다면 아래에서 직접 입력해주세요.
+              인허가 단계·대출기간·시행사 실적·시공사 등급·입지·공급경쟁·신용보강구조·분양률·대출금리·취급수수료·공사비는
+              기본적으로 임의값이 사용됩니다. 실제 값을 아신다면 아래 고급 설정에서 직접 입력해주세요.
             </div>
             <button
               type="button"
@@ -746,6 +753,16 @@ export default function PFReportMVP() {
             </button>
             {showAdvanced && (
               <div className="field-grid" style={{ marginBottom: 10 }}>
+                <div className="field">
+                  <label>인허가 단계</label>
+                  <select value={form.permitStage} onChange={(e) => setForm({ ...form, permitStage: e.target.value })}>
+                    {PERMIT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>대출기간 (개월)</label>
+                  <input type="number" min="1" max="360" value={form.loanTermMonths} onChange={(e) => setForm({ ...form, loanTermMonths: e.target.value })} />
+                </div>
                 <div className="field">
                   <label>시행사 실적</label>
                   <select value={form.developerTrack} onChange={(e) => setForm({ ...form, developerTrack: e.target.value })}>
@@ -796,10 +813,6 @@ export default function PFReportMVP() {
                   비용 직접입력 (선택 — 입력 시 자동계산보다 우선 적용)
                 </div>
                 <div className="field-grid" style={{ marginBottom: 8 }}>
-                  <div className="field">
-                    <label>총사업비 직접입력 (만원)</label>
-                    <input placeholder="비우면 자동계산" value={form.totalCostOverride} onChange={(e) => setForm({ ...form, totalCostOverride: e.target.value })} />
-                  </div>
                   <div className="field">
                     <label>토지매입비 직접입력 (만원, 총액)</label>
                     <input placeholder="비우면 평당 토지가 기반 자동계산" value={form.landCostOverride} onChange={(e) => setForm({ ...form, landCostOverride: e.target.value })} />
@@ -1057,7 +1070,7 @@ export default function PFReportMVP() {
                     </div>
                   </div>
 
-                  <h2 style={{ fontSize: 15, marginBottom: 4, color: "#1F1C14" }}>핵심 리스크 TOP3</h2>
+                  <h2 style={{ fontSize: 15, marginBottom: 4, color: "#1F1C14" }}>핵심 리스크</h2>
                   <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
                     종합 평가항목(아래 1번 표) 중 배점 손실이 큰 순으로 자동 추출한 실제 채점 근거입니다.
                   </div>
@@ -1067,7 +1080,7 @@ export default function PFReportMVP() {
                     <ScoreItemRow key={item.key} item={item} />
                   ))}
 
-                  <h2 style={{ fontSize: 15, marginTop: 18, marginBottom: 4, color: "#1F1C14" }}>핵심 강점 TOP2</h2>
+                  <h2 style={{ fontSize: 15, marginTop: 18, marginBottom: 4, color: "#1F1C14" }}>핵심 강점</h2>
                   {topStrengthItems(result.scoreModel, 2).length === 0 ? (
                     <div style={{ fontSize: 13, color: "#9C3B34", marginBottom: 12 }}>우수로 판정된 항목이 없습니다.</div>
                   ) : topStrengthItems(result.scoreModel, 2).map((item) => (
