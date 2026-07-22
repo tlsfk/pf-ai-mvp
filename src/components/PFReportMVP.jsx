@@ -1378,6 +1378,22 @@ export default function PFReportMVP() {
                       ? "실제 데이터 기반: 평당가(국토교통부 실거래가 API), 용적률(국토계획법 시행령·서울시 도시계획조례), 자기자본비율 20%↑ 기준(2011년 저축은행 사태 이후 금융당국 규제 기준). 근거 없는 가정치: 공사비·소프트비용 비율(임의 범위), 시행사·시공사·입지·분양률·대출조건 기본값. 실 서비스 전환 시 브이월드·건축물대장·실제 입력값으로 교체가 필요합니다."
                       : "실거래가 연동에 실패해 용도지역별 평당가도 가정치로 대체되었습니다. 이 리포트의 숫자 대부분이 근거 없는 임의값이니 참고용으로만 사용하세요. 실제 데이터 기반은 자기자본비율 20%↑ 기준(금융당국 규제)과 법정 용적률뿐입니다."}
                   </div>
+
+                  <h2 style={{ fontSize: 16, marginTop: 24, marginBottom: 8, color: "#1F1C14" }}>8. 심사 체크리스트</h2>
+                  <div style={{ fontSize: 11, color: "#3D3826", marginBottom: 8 }}>
+                    5번 종합 평가항목의 모든 세부 지표를 자동 판정한 결과입니다(&ldquo;위험&rdquo;이면 미충족 ☐로 표시). 새 판정 기준 없이 기존 채점 결과를 그대로 재구성합니다.
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 20px", marginBottom: 16 }}>
+                    {result.scoreModel.categories.flatMap((c) => c.items).map((item) => (
+                      <div key={item.key} style={{ fontSize: 12.5, color: item.tier === "위험" ? "#9C3B34" : "#1F1C14" }}>
+                        {item.tier === "위험" ? "☐" : "☑"} {item.name} {item.tier === "위험" ? `— ${item.detail} (미충족)` : "적정"}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: "10px 14px", background: "#F1EEE5", borderRadius: 4, border: `1px solid ${result.gradeColor}` }}>
+                    <div style={{ fontSize: 10.5, color: "#332818", textTransform: "uppercase", letterSpacing: "0.05em" }}>최종 심사의견</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: result.gradeColor, marginTop: 2 }}>{DECISION_LABEL[result.gradeBand]}</div>
+                  </div>
                   </>
                   )}
                 </div>
