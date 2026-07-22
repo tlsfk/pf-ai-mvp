@@ -71,17 +71,27 @@ const PROJECT_TYPE_TRADES = {
   "신축개발": ["land", "officetel"],
 };
 
-/** 실거래가 items에서 평당가(만원/평) 평균과, 개별 거래 목록(comps)을 함께 계산 */
+/**
+ * 실거래가 items에서 평당가(만원/평) 평균과, 개별 거래 목록(comps)을 함께 계산.
+ * "토지매매(land)"는 완성된 부동산이 아니라 대지 자체의 거래가라 아파트/오피스텔 등
+ * 완성품 거래가와 평당가 수준이 전혀 다릅니다(수백만원대 vs 수천만원대). 하나의 평균에
+ * 섞으면(예: 신축개발=land+officetel 동시조회) 분양가 추정치가 토지가 쪽으로 끌려
+ * 내려가 실제로는 완판된 사업도 "분양가 < 공사비"로 계산돼 적자로 나오는 버그가 있었습니다.
+ * → land는 별도 평균(landAvgPricePerPy, 토지매입비 추정용)으로 분리하고, 분양가에는
+ *   완성품 거래유형(officetel/apt/aptDev 등)의 평균만 사용합니다.
+ */
 function summarizeTrades(tradeResults) {
-  const comps = [];
+  const landComps = [];
+  const productComps = [];
   for (const r of tradeResults) {
     if (!r || r.error || !r.items) continue;
+    const bucket = r.type === "land" ? landComps : productComps;
     for (const item of r.items) {
       const amount = Number(String(item.dealAmount || "").replace(/,/g, ""));
       const area = Number(item.area);
       if (amount > 0 && area > 0) {
         const py = area / 3.3058;
-        comps.push({
+        bucket.push({
           name: item.name || "이름 미상",
           dealAmount: amount, // 만원
           area,
@@ -92,9 +102,12 @@ function summarizeTrades(tradeResults) {
       }
     }
   }
-  if (comps.length === 0) return { avgPricePerPy: null, comps: [] };
-  const avgPricePerPy = comps.reduce((a, c) => a + c.pricePerPy, 0) / comps.length;
-  return { avgPricePerPy, comps };
+  const avgOf = (arr) => (arr.length === 0 ? null : arr.reduce((a, c) => a + c.pricePerPy, 0) / arr.length);
+  const comps = [...productComps, ...landComps];
+  if (comps.length === 0) return { avgPricePerPy: null, landAvgPricePerPy: null, comps: [] };
+  // 완성품 비교사례가 있으면 그것만으로 분양가를 추정하고, 없으면(예: 재개발처럼 완성품 유형을
+  // 조회하지 않는 사업유형) 부득이 토지가 평균으로 대체합니다.
+  return { avgPricePerPy: avgOf(productComps) ?? avgOf(landComps), landAvgPricePerPy: avgOf(landComps), comps };
 }
 
 /** 실데이터 조회를 시도하고, 성공하면 평당가+거래목록을, 실패하면 null과 사유를 반환 */
@@ -102,23 +115,23 @@ async function tryFetchRealPrice(form) {
   // vite.config.js의 /api/molit, /api/vworld 프록시는 `vite dev` 전용 기능이라 프로덕션
   // 빌드(정적 호스팅)에서는 항상 실패합니다. 혼란스러운 네트워크 에러 대신 사유를 명확히 안내합니다.
   if (!import.meta.env.DEV) {
-    return { price: null, comps: [], reason: "실거래가 연동은 로컬 개발 서버(npm run dev)에서만 지원됩니다. 배포 환경에서는 프록시가 없어 항상 가정치로 표시됩니다." };
+    return { price: null, landPrice: null, comps: [], reason: "실거래가 연동은 로컬 개발 서버(npm run dev)에서만 지원됩니다. 배포 환경에서는 프록시가 없어 항상 가정치로 표시됩니다." };
   }
   const lawdCd = addressToLawdCd(form.address);
   if (!lawdCd) {
-    return { price: null, comps: [], reason: "주소에서 구/군을 인식하지 못했습니다." };
+    return { price: null, landPrice: null, comps: [], reason: "주소에서 구/군을 인식하지 못했습니다." };
   }
   const types = PROJECT_TYPE_TRADES[form.projectType] || ["land"];
   try {
     const results = await fetchTrades(types, { lawdCd, dealYmd: recentDealYmd() });
     const failed = results.filter((r) => r.error);
-    const { avgPricePerPy, comps } = summarizeTrades(results);
+    const { avgPricePerPy, landAvgPricePerPy, comps } = summarizeTrades(results);
     if (avgPricePerPy == null) {
-      return { price: null, comps: [], reason: failed[0]?.error || "해당 지역·기간의 실거래 데이터가 없습니다." };
+      return { price: null, landPrice: null, comps: [], reason: failed[0]?.error || "해당 지역·기간의 실거래 데이터가 없습니다." };
     }
-    return { price: avgPricePerPy, comps, reason: null };
+    return { price: avgPricePerPy, landPrice: landAvgPricePerPy, comps, reason: null };
   } catch (e) {
-    return { price: null, comps: [], reason: e.message || "실거래가 API 호출 실패" };
+    return { price: null, landPrice: null, comps: [], reason: e.message || "실거래가 API 호출 실패" };
   }
 }
 const fmt = (n) => Math.round(n).toLocaleString("ko-KR");
@@ -480,14 +493,14 @@ export default function PFReportMVP() {
 
     // 애니메이션과 실제 데이터 조회를 병렬로 진행
     const stepTimer = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), 420);
-    const [{ price: realPrice, comps: fetchedComps, reason }] = await Promise.all([
+    const [{ price: realPrice, landPrice: realLandPrice, comps: fetchedComps, reason }] = await Promise.all([
       tryFetchRealPrice(activeForm),
       new Promise((r) => setTimeout(r, steps.length * 420)),
     ]);
     clearInterval(stepTimer);
     setStep(steps.length);
 
-    const analysisResult = runAnalysis(activeForm, realPrice, (fetchedComps || []).length);
+    const analysisResult = runAnalysis(activeForm, realPrice, (fetchedComps || []).length, realLandPrice);
     const note = realPrice != null ? { ok: true } : { ok: false, reason };
     setResult(analysisResult);
     setDataNote(note);

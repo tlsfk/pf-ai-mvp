@@ -53,8 +53,9 @@ const DEFAULT_SOFT_COST_RATIO = 0.15; // 15%
 /**
  * 폼 입력값 하나로 사업수지·금융구조·채점 결과를 전부 산출하는 핵심 계산 함수.
  * @param {object} form - PFReportMVP의 `form` state와 동일한 필드 구조(문자열 입력값 포함).
- * @param {number|null} [realPricePerPy] - 국토부 실거래가로 조회된 평당가(만원). null이면 가정치 사용.
+ * @param {number|null} [realPricePerPy] - 국토부 실거래가(완성품 유형만)로 조회된 분양가 추정 평당가(만원). null이면 가정치 사용.
  * @param {number} [compsCount] - 실거래가 API로 확보한 비교사례 건수(사업성/입지 채점에 사용).
+ * @param {number|null} [realLandPricePerPy] - 국토부 실거래가(토지매매 유형)로 조회된 평당 토지가(만원). null이면 분양가 역산 추정치 사용.
  * @returns {object} 리포트 렌더링에 쓰이는 계산 결과(landCost, totalCost, ltv, dscr, scoreModel, grade 등).
  */
 export function runAnalysis(
@@ -65,7 +66,8 @@ export function runAnalysis(
     designFee, supervisionFee, salesCost, contingency, demolitionCost, leviesCost, miscCost,
   },
   realPricePerPy = null,
-  compsCount = 0
+  compsCount = 0,
+  realLandPricePerPy = null
 ) {
   const seed = hashSeed(address + zone + projectType + lender + area);
   // 폼 입력값은 문자열이라, 산술 연산 시 "9.0" + 0.4 처럼 문자열 이어붙기가 되는 걸 방지하기 위해 숫자로 명시 변환.
@@ -79,10 +81,15 @@ export function runAnalysis(
   const grossFloorPy = landAreaPy * (far / 100);
 
   const usingRealData = realPricePerPy != null;
-  // 국토부 실거래가는 이미 "완성된 부동산의 시세"이므로 분양가(salesPricePerPy)로 직접 사용합니다.
-  // 땅값(landPricePerPy)은 분양가에서 배수를 역산해 추정합니다 (가정치 사용 시와 동일한 배수 논리).
+  // 국토부 실거래가(완성품 유형만 — 토지매매는 제외하고 별도 realLandPricePerPy로 받음)는
+  // 이미 "완성된 부동산의 시세"이므로 분양가(salesPricePerPy)로 직접 사용합니다.
+  // 땅값(landPricePerPy)은 실제 토지매매 실거래가 있으면 그 값을, 없으면 분양가에서
+  // 배수를 역산한 추정치를 사용합니다 (가정치 사용 시와 동일한 배수 논리).
   const priceMultiplier = 1.7 + seededRand(seed, 2) * 0.9; // ⚠️ 근거 없는 임의 배수(1.7~2.6배). 실제 원가율 데이터 없음.
-  const landPricePerPy = usingRealData ? realPricePerPy / priceMultiplier : 900 + Math.floor(seededRand(seed, 1) * 2200); // 만원/평
+  const usingRealLandData = realLandPricePerPy != null;
+  const landPricePerPy = usingRealLandData ? realLandPricePerPy
+    : usingRealData ? realPricePerPy / priceMultiplier
+    : 900 + Math.floor(seededRand(seed, 1) * 2200); // 만원/평
   const salesPricePerPy = usingRealData ? realPricePerPy : landPricePerPy * priceMultiplier;
 
   // 공사비: 사용자가 평당 공사비를 직접 입력하면 그 값을, 아니면 고정 기본값(랜덤 아님)을 사용
@@ -93,7 +100,10 @@ export function runAnalysis(
   // 토지매입비: 사용자가 총액을 직접 입력하면 그 값을, 아니면 평당 토지가 기반 자동계산값을 사용
   const landCostOverrideNum = Number(landCostOverride);
   const landCost = landCostOverrideNum > 0 ? landCostOverrideNum : landAreaPy * landPricePerPy;
-  const landCostSource = landCostOverrideNum > 0 ? "사용자 입력값(총액)" : (usingRealData ? "국토교통부 실거래가 역산" : "가정치(근거 없음, 미입력)");
+  const landCostSource = landCostOverrideNum > 0 ? "사용자 입력값(총액)"
+    : usingRealLandData ? "국토교통부 실거래가(토지매매)"
+    : usingRealData ? "국토교통부 실거래가(분양가) 역산 추정"
+    : "가정치(근거 없음, 미입력)";
   const constructionCost = grossFloorPy * constructionCostPerPy;
 
   // 소프트코스트: "비율" 모드(%) 또는 "항목별" 모드(철거비/설계비/감리비/분양마케팅비/부담금/예비비/기타 직접입력) 중 선택
