@@ -11,6 +11,17 @@ import {
 import { saveAnalysisResult, buildAnalysisRecord, loadAnalysisHistory, deleteAnalysisResult } from "../lib/analysisStorage";
 import { runAnalysis, ZONE_FAR, PLACEHOLDER_DEFAULTS, allInCostRate } from "../lib/analysis";
 import { loadCaseComparisons } from "../lib/pfCases";
+import { extractFromWorkbook, toFormPatch, FIELD_LABELS } from "../lib/excelExtractor";
+
+// 엑셀 추출 필드 → 화면에 보여줄 한글 라벨(FIELD_LABELS 키 순서와 무관하게 사람이 읽기 좋은 이름으로 매핑)
+const EXTRACT_FIELD_DISPLAY_NAME = {
+  address: "사업부지 주소", area: "대지면적", zone: "용도지역", projectType: "사업유형",
+  totalCostOverride: "총사업비", landCostOverride: "토지매입비", constructionCostPerPyInput: "평당 공사비",
+  interestRate: "대출금리(%)", originationFee: "취급수수료(%)", loanTermMonths: "대출기간(개월)",
+  equityRatio: "자기자본비율(%)", expectedSaleRate: "예상분양률(%)",
+  demolitionCost: "철거비", designFee: "설계비", supervisionFee: "감리비", salesCost: "분양마케팅비",
+  leviesCost: "부담금", contingency: "예비비", miscCost: "기타비용",
+};
 
 const OUTCOME_LABEL = { success: "성공", delayed: "지연", default: "부도", unknown: "미확정" };
 const VERDICT_COLOR = { 일치: "#8AB89A", 불일치: "#D98C7A", 판정보류: "#3B4250", "계산 실패": "#D98C7A" };
@@ -441,6 +452,10 @@ export default function PFReportMVP() {
   const [caseComparisons, setCaseComparisons] = useState(null); // 첫 오픈 시 1회만 계산해 캐시
   const [historyList, setHistoryList] = useState(() => loadAnalysisHistory()); // localStorage 이력 캐시(삭제/저장 시마다 갱신)
   const [historySearch, setHistorySearch] = useState(""); // 이력 목록 주소 검색어
+  const [excelFileName, setExcelFileName] = useState(null); // 업로드한 사업수지 엑셀 파일명
+  const [excelResult, setExcelResult] = useState(null); // extractFromWorkbook() 결과 { extracted, missingFields, warnings }
+  const [excelParsing, setExcelParsing] = useState(false); // 파싱 중 로딩 상태
+  const [excelApplied, setExcelApplied] = useState(new Set()); // 사용자가 "적용" 누른 필드 key(중복 적용 방지 및 UI 표시용)
   const market = result ? buildMarketAnalysis(result.scoreModel) : null; // "3. 시장성 분석" 섹션용 파생값(채점 재사용, 새 계산 없음)
   const filteredHistory = historyList
     .map((record, index) => ({ record, index }))
@@ -473,6 +488,38 @@ export default function PFReportMVP() {
     if (addr === lastLookupAddressRef.current && vworldStatus?.ok) return;
     lastLookupAddressRef.current = addr;
     handleVworldLookup();
+  };
+
+  // 사업수지 엑셀(XLSX) 업로드 → 자동 추출. North Star: 사용자가 새 양식을 다시 입력하는 게 아니라
+  // 기존에 쓰던 엑셀을 그대로 올리면 AI가 값을 찾아주고, 사람이 "적용"을 눌러야만 폼에 반영된다
+  // (자동으로 값을 덮어쓰지 않음 — 심사역이 반드시 원본과 대조 확인할 수 있도록).
+  const handleExcelFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExcelFileName(file.name);
+    setExcelParsing(true);
+    setExcelApplied(new Set());
+    try {
+      const buf = await file.arrayBuffer();
+      const result = extractFromWorkbook(buf);
+      setExcelResult(result);
+    } catch (err) {
+      setExcelResult({ extracted: [], missingFields: Object.keys(FIELD_LABELS), warnings: [`파일 처리 중 오류: ${err.message}`] });
+    } finally {
+      setExcelParsing(false);
+      e.target.value = ""; // 같은 파일 재업로드 시에도 onChange가 다시 발생하도록 초기화
+    }
+  };
+
+  const applyExtractedField = (item) => {
+    setForm((f) => ({ ...f, ...toFormPatch([item]) }));
+    setExcelApplied((prev) => new Set(prev).add(item.field));
+  };
+
+  const applyAllExtractedFields = () => {
+    if (!excelResult) return;
+    setForm((f) => ({ ...f, ...toFormPatch(excelResult.extracted) }));
+    setExcelApplied(new Set(excelResult.extracted.map((i) => i.field)));
   };
 
   const steps = ["주소 검증 중", "실거래가 데이터 조회 중", "사업성 지표 산출 중", "리스크 스코어링 중", "심사 리포트 생성 중"];
@@ -685,6 +732,70 @@ export default function PFReportMVP() {
         <div className="app-grid" style={{ display: "grid", gridTemplateColumns: "35% 65%", gap: 24 }}>
           {/* input panel */}
           <div className="input-panel" style={{ background: "#FFFFFF", border: "1px solid #DDE1E6", borderRadius: 6, padding: 18, alignSelf: "start" }}>
+            <div style={{ border: "1px dashed #1F3A5F", borderRadius: 5, padding: 12, marginBottom: 16, background: "#F7F9FB" }}>
+              <div style={{ fontSize: 11, color: "#1F3A5F", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, fontWeight: 700 }}>
+                사업수지 엑셀 업로드 (선택) — AI 자동 추출
+              </div>
+              <div style={{ fontSize: 11, color: "#3B4250", marginBottom: 8, lineHeight: 1.5 }}>
+                기존에 쓰던 사업수지표(.xlsx)를 그대로 올리면 아래 항목을 자동으로 찾아드립니다.
+                값은 <b>자동으로 반영되지 않고</b>, 원본 셀 위치를 확인한 뒤 직접 &ldquo;적용&rdquo;을 눌러야 폼에 채워집니다.
+              </div>
+              <input type="file" accept=".xlsx,.xls" onChange={handleExcelFile} style={{ fontSize: 11 }} />
+              {excelParsing && <div style={{ fontSize: 11, color: "#3B4250", marginTop: 8 }}>{excelFileName} 분석 중…</div>}
+              {excelResult && !excelParsing && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, color: "#1F2430" }}>
+                      <b>{excelFileName}</b> — {excelResult.extracted.length}개 항목 인식됨
+                    </span>
+                    {excelResult.extracted.length > 0 && (
+                      <button type="button" onClick={applyAllExtractedFields}
+                        style={{ fontSize: 11, padding: "3px 8px", border: "1px solid #1F3A5F", borderRadius: 3, background: "#1F3A5F", color: "#fff", cursor: "pointer" }}>
+                        전체 적용
+                      </button>
+                    )}
+                  </div>
+                  {excelResult.extracted.length > 0 && (
+                    <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #DDE1E6", borderRadius: 4 }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
+                        <thead>
+                          <tr style={{ background: "#F0F2F5", textAlign: "left" }}>
+                            <th style={{ padding: "4px 6px" }}>항목</th>
+                            <th style={{ padding: "4px 6px" }}>추출값</th>
+                            <th style={{ padding: "4px 6px" }}>출처 셀</th>
+                            <th style={{ padding: "4px 6px" }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {excelResult.extracted.map((item) => (
+                            <tr key={item.field} style={{ borderTop: "1px solid #EDEFF2" }}>
+                              <td style={{ padding: "4px 6px" }}>{EXTRACT_FIELD_DISPLAY_NAME[item.field] || item.field}</td>
+                              <td style={{ padding: "4px 6px" }}>{String(item.value)}</td>
+                              <td style={{ padding: "4px 6px", color: "#3B4250", fontFamily: "monospace" }}>{item.sourceCell}</td>
+                              <td style={{ padding: "4px 6px", textAlign: "right" }}>
+                                {excelApplied.has(item.field) ? (
+                                  <span style={{ color: "#8AB89A", fontSize: 10.5 }}>적용됨</span>
+                                ) : (
+                                  <button type="button" onClick={() => applyExtractedField(item)}
+                                    style={{ fontSize: 10.5, padding: "2px 6px", border: "1px solid #1F3A5F", borderRadius: 3, background: "#fff", color: "#1F3A5F", cursor: "pointer" }}>
+                                    적용
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {excelResult.warnings.length > 0 && (
+                    <div style={{ fontSize: 10.5, color: "#C98A6A", marginTop: 8, lineHeight: 1.5 }}>
+                      ⚠️ {excelResult.warnings.join(" ")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="field">
               <label><MapPin size={11} style={{ marginRight: 4 }} />주소</label>
               <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} onBlur={handleAddressBlur} />

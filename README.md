@@ -51,11 +51,12 @@ node test-api.mjs
 ## 검증 스크립트
 
 ```bash
-node test-scoring.mjs    # 채점모델(scoring/index.js) 회귀 테스트
-node test-pf-cases.mjs   # PF 사례 11건 AI등급 vs 실제결과 비교 검증
+node test-scoring.mjs          # 채점모델(scoring/index.js) 회귀 테스트
+node test-pf-cases.mjs         # PF 사례 11건 AI등급 vs 실제결과 비교 검증
+node test-excel-extractor.mjs  # 사업수지 엑셀 업로드 자동추출(excelExtractor.js) 회귀 테스트
 ```
 
-`npm run build` / `npm run lint`와 함께 코드 변경 후 항상 이 4개를 통과 확인하는 게
+`npm run build` / `npm run lint`와 함께 코드 변경 후 항상 이 5개를 통과 확인하는 게
 이 프로젝트의 관행입니다(`CLAUDE.md`의 Definition of Done 참고).
 
 ## 폴더 구조
@@ -71,6 +72,7 @@ pf-project-FINAL/
 ├── test-api.mjs               ← MOLIT API 연결 확인용
 ├── test-scoring.mjs           ← 채점모델 회귀 테스트
 ├── test-pf-cases.mjs          ← PF 사례 검증 회귀 테스트
+├── test-excel-extractor.mjs   ← 사업수지 엑셀 자동추출 회귀 테스트
 ├── data/
 │   └── pf-cases/               ← PF 사례 11건(케이스별 JSON) + 스키마 설명(README.md)
 ├── docs/superpowers/
@@ -86,5 +88,6 @@ pf-project-FINAL/
         ├── pfCases.js          ← PF 사례 로딩 + AI등급 vs 실제결과 판정 로직
         ├── realDataFetcher.js  ← 국토부 실거래가 + 브이월드 실데이터 연동
         ├── lawdCodes.js        ← 전국 법정동코드(LAWD_CD) 매핑
+        ├── excelExtractor.js   ← 사업수지 엑셀 업로드 → 폼 필드 자동 추출(North Star 1단계)
         └── analysisStorage.js  ← 분석 이력 localStorage 저장/조회
 ```
