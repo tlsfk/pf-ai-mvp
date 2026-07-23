@@ -123,11 +123,6 @@ function summarizeTrades(tradeResults) {
 
 /** 실데이터 조회를 시도하고, 성공하면 평당가+거래목록을, 실패하면 null과 사유를 반환 */
 async function tryFetchRealPrice(form) {
-  // vite.config.js의 /api/molit, /api/vworld 프록시는 `vite dev` 전용 기능이라 프로덕션
-  // 빌드(정적 호스팅)에서는 항상 실패합니다. 혼란스러운 네트워크 에러 대신 사유를 명확히 안내합니다.
-  if (!import.meta.env.DEV) {
-    return { price: null, landPrice: null, comps: [], reason: "실거래가 연동은 로컬 개발 서버(npm run dev)에서만 지원됩니다. 배포 환경에서는 프록시가 없어 항상 가정치로 표시됩니다." };
-  }
   const lawdCd = addressToLawdCd(form.address);
   if (!lawdCd) {
     return { price: null, landPrice: null, comps: [], reason: "주소에서 구/군을 인식하지 못했습니다." };

@@ -19,10 +19,10 @@ function loadEnvLocal() {
 }
 
 const env = loadEnvLocal();
-const KEY = env.VITE_MOLIT_API_KEY;
+const KEY = env.MOLIT_API_KEY;
 
 if (!KEY) {
-  console.error("VITE_MOLIT_API_KEY가 .env.local에 없습니다.");
+  console.error("MOLIT_API_KEY가 .env.local에 없습니다.");
   process.exit(1);
 }
 

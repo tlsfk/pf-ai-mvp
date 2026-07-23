@@ -38,10 +38,11 @@
 - [ ] Git commit 완료
 - [ ] Git push 완료
 
-## 알려진 제약 (2026-07-21 기준)
+## 알려진 제약 (2026-07-24 기준)
 
 - `src/lib/lawdCodes.js`의 전남광주통합특별시 관련 코드는 미검증 — code.go.kr 재확인 필요
-- 실거래가/브이월드 API 키(`VITE_` 접두사)는 프로덕션 빌드 시 클라이언트에 노출됨 —
-  실제 배포 전 서버 프록시로 이전 필요
 - `xlsx` 패키지의 npm audit 취약점은 읽기(파싱) 경로 전용이라 이 프로젝트(쓰기만 사용)에는
   해당 없음
+- 배포는 Vercel 기준(`api/molit`, `api/vworld` 서버리스 함수). 새 환경에 배포할 때는
+  Vercel 프로젝트 환경변수에 `MOLIT_API_KEY`/`VWORLD_API_KEY`를 반드시 등록할 것
+  (README.md "API 키 상태" 참고)

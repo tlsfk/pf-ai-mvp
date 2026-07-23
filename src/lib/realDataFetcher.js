@@ -1,16 +1,10 @@
 /**
  * 실거래가 실데이터 연동 — 7종 전체
  * -------------------------------------------------
- * data.go.kr에서 발급받은 서비스키가 .env.local의 VITE_MOLIT_API_KEY에 이미 채워져 있습니다.
- * (7개 데이터셋 모두 동일한 일반 인증키 하나로 호출됩니다 — data.go.kr은 데이터셋별이 아니라
- *  계정 단위로 키를 발급하기 때문입니다.)
- *
- * 참고: 이 키는 본인 계정에 물려있는 인증키이니 공개 저장소(GitHub 등)에 올리지 마시고,
- * .env.local은 .gitignore에 반드시 포함하세요 (아래 .gitignore 파일에 이미 추가해뒀습니다).
+ * 서비스키(MOLIT_API_KEY/VWORLD_API_KEY)는 클라이언트가 들고 있지 않습니다 — 로컬은
+ * vite.config.js의 dev 프록시가, 배포 환경은 api/molit·api/vworld 서버리스 함수가
+ * 서버 쪽에서 주입합니다(2026-07-24, 프로덕션 번들 키 노출 문제 수정).
  */
-
-const MOLIT_API_KEY = import.meta.env.VITE_MOLIT_API_KEY || "";
-const VWORLD_API_KEY = import.meta.env.VITE_VWORLD_API_KEY || "";
 
 // 서비스명 + 오퍼레이션명 매핑 (data.go.kr 요청주소 기준: /1613000/{서비스명}/{오퍼레이션명})
 const TRADE_ENDPOINTS = {
@@ -28,16 +22,13 @@ const TRADE_ENDPOINTS = {
  * @param {{ lawdCd: string, dealYmd: string }} params  LAWD_CD: 법정동코드 5자리, DEAL_YMD: 'YYYYMM'
  */
 export async function fetchTrade(type, { lawdCd, dealYmd, numOfRows = 100, pageNo = 1 }) {
-  if (!MOLIT_API_KEY) {
-    throw new Error("MOLIT_API_KEY가 없습니다. .env.local의 VITE_MOLIT_API_KEY를 확인하세요.");
-  }
   const endpoint = TRADE_ENDPOINTS[type];
   if (!endpoint) throw new Error(`알 수 없는 거래유형: ${type}`);
 
-  // vite.config.js의 프록시(/api/molit → https://apis.data.go.kr)를 경유해 CORS를 우회합니다.
+  // /api/molit 프록시(로컬: vite dev 프록시, 배포: api/molit 서버리스 함수)가 서비스키를
+  // 서버 쪽에서 주입하므로 여기서는 serviceKey를 넘기지 않습니다.
   const base = `/api/molit/1613000/${endpoint.service}/${endpoint.op}`;
   const params = new URLSearchParams({
-    serviceKey: MOLIT_API_KEY,
     LAWD_CD: lawdCd,
     DEAL_YMD: dealYmd,
     numOfRows: String(numOfRows),
@@ -90,12 +81,9 @@ function parseMolitXml(xmlText) {
 
 /** 주소 → PNU(19자리 필지고유번호) 변환. 못 찾으면 null. */
 export async function geocodeToPnu(address) {
-  if (!VWORLD_API_KEY) {
-    throw new Error("VWORLD_API_KEY가 없습니다. .env.local의 VITE_VWORLD_API_KEY를 확인하세요.");
-  }
   const params = new URLSearchParams({
     service: "address", request: "getcoord", crs: "epsg:4326",
-    address, type: "PARCEL", key: VWORLD_API_KEY,
+    address, type: "PARCEL",
   });
   const res = await fetch(`/api/vworld/req/address?${params.toString()}`);
   const data = await res.json();
@@ -110,12 +98,9 @@ export async function geocodeToPnu(address) {
  * ⚠️ 건폐율·용적률은 이 API(토지 자체 정보)에는 없습니다 — 건축물대장 소관이라 별도 데이터가 필요합니다.
  */
 export async function fetchLandCharacteristics(pnu) {
-  if (!VWORLD_API_KEY) {
-    throw new Error("VWORLD_API_KEY가 없습니다. .env.local의 VITE_VWORLD_API_KEY를 확인하세요.");
-  }
   const domain = typeof window !== "undefined" ? window.location.host : "localhost";
   const params = new URLSearchParams({
-    pnu, format: "json", numOfRows: "20", pageNo: "1", key: VWORLD_API_KEY, domain,
+    pnu, format: "json", numOfRows: "20", pageNo: "1", domain,
   });
   const res = await fetch(`/api/vworld/ned/data/getLandCharacteristics?${params.toString()}`);
   const data = await res.json();
