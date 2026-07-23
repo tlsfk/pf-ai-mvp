@@ -18,27 +18,37 @@ import * as XLSX from "xlsx";
  */
 
 // 필드별 라벨 후보(우선순위 순 — 앞에 있을수록 더 확실한 표현). 여러 개가 매칭되면 첫 매칭만 채택.
+// 공백은 normalize()가 매칭 시 제거하므로 "총 사업비"처럼 띄어쓰기 변형을 따로 적을 필요는 없지만,
+// 완전히 다른 단어(합성어 vs 축약)는 여전히 별도 후보로 등록해야 함.
+// ponytail: 실제 사업수지 엑셀 샘플 없이 도메인 지식으로 채운 목록이라 커버리지에 한계가 있음.
+// 실사용에서 미인식 필드가 반복되면 그 라벨을 여기 추가하는 식으로 확장.
 const FIELD_LABELS = {
-  address: ["사업부지 주소", "사업부지주소", "대지위치", "소재지", "주소"],
+  address: ["사업부지 주소", "대지위치", "소재지", "주소"],
   area: ["대지면적", "부지면적", "토지면적"],
   zone: ["용도지역"],
   projectType: ["사업유형", "사업구분", "사업방식"],
-  totalCostOverride: ["총사업비", "사업비 합계", "총 사업비", "사업비합계"],
-  landCostOverride: ["토지매입비", "토지비", "용지비"],
-  constructionCostPerPyInput: ["평당 공사비", "공사비(평당)", "평당공사비", "3.3㎡당 공사비"],
-  interestRate: ["대출금리", "차입금리", "이자율", "PF금리"],
-  originationFee: ["취급수수료", "취급수수료율", "약정수수료"],
-  loanTermMonths: ["대출기간(개월)", "대출기간", "차입기간"],
-  equityRatio: ["자기자본비율", "자기자본율", "Equity비율"],
-  expectedSaleRate: ["예상분양률", "분양률", "목표분양률"],
+  totalCostOverride: ["총사업비", "사업비합계", "총사업비합계", "사업비"],
+  landCostOverride: ["토지매입비", "부지매입비", "대지매입비", "토지비", "용지비"],
+  constructionCostPerPyInput: ["평당공사비", "3.3㎡당 공사비", "건축공사비", "공사비"],
+  interestRate: ["대출금리", "차입금리", "이자율", "PF금리", "금리"],
+  originationFee: ["취급수수료율", "취급수수료", "약정수수료"],
+  loanTermMonths: ["대출기간(개월)", "대출기간(월)", "대출기간", "차입기간"],
+  equityRatio: ["자기자본비율", "자기자본율", "Equity비율", "자기자본"],
+  expectedSaleRate: ["예상분양률", "목표분양률", "분양률", "분양율"],
   demolitionCost: ["철거비"],
   designFee: ["설계비"],
   supervisionFee: ["감리비"],
-  salesCost: ["분양마케팅비", "분양경비", "마케팅비"],
-  leviesCost: ["부담금", "각종부담금", "제세공과금"],
+  salesCost: ["분양마케팅비", "분양경비", "광고홍보비", "마케팅비"],
+  leviesCost: ["기반시설부담금", "각종부담금", "부담금", "제세공과금"],
   contingency: ["예비비"],
   miscCost: ["기타비용", "기타"],
 };
+
+/** 공백(전각 포함)을 전부 제거해 "총 사업비"/"총사업비" 같은 표기 차이를 흡수한다. */
+function normalize(text) {
+  // eslint-disable-next-line no-irregular-whitespace -- 전각공백(U+3000) 매칭을 위해 의도적으로 포함
+  return text.replace(/[\s　]+/g, "");
+}
 
 // 숫자로 변환해야 하는 필드(나머지는 문자열 그대로 사용 — 주소, 용도지역, 사업유형)
 const NUMERIC_FIELDS = new Set([
@@ -92,10 +102,11 @@ export function extractFromWorkbook(arrayBuffer) {
         if (!cell || typeof cell.v !== "string") continue;
         const cellText = cell.v.trim();
         if (!cellText) continue;
+        const normalizedCellText = normalize(cellText);
 
         for (const [field, labels] of Object.entries(FIELD_LABELS)) {
           if (foundByField[field]) continue; // 이미 앞에서 찾은 필드는 스킵(첫 매칭 우선)
-          const matchedLabel = labels.find((label) => cellText.includes(label));
+          const matchedLabel = labels.find((label) => normalizedCellText.includes(normalize(label)));
           if (!matchedLabel) continue;
 
           // 라벨 셀의 오른쪽 → 그 다음 오른쪽 → 바로 아래 순으로 값 후보 탐색
