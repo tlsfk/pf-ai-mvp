@@ -5,7 +5,7 @@
 심사 리포트 생성(PDF/Excel)까지 전 플로우가 동작하는 MVP입니다.
 
 **현재 상태**: 실거래가(국토부)·용도지역/공시지가(브이월드) 실데이터 연동 완료,
-자체 채점모델(v1.4.1)로 등급 산정, 실제 PF 사례 11건(성공2·지연1·부도7·더미1)으로
+자체 채점모델(v1.4.1)로 등급 산정, 실제 PF 사례 13건(성공3·지연1·부도7·진행중(결과미확정)1·더미1)으로
 검증 완료. 상세 진행상황은 `CONTEXT.md` 참고.
 
 ## 이 폴더를 다른 Claude 계정으로 옮기는 법
@@ -55,7 +55,7 @@ node test-api.mjs
 
 ```bash
 node test-scoring.mjs          # 채점모델(scoring/index.js) 회귀 테스트
-node test-pf-cases.mjs         # PF 사례 11건 AI등급 vs 실제결과 비교 검증
+node test-pf-cases.mjs         # PF 사례 13건 AI등급 vs 실제결과 비교 검증
 node test-excel-extractor.mjs  # 사업수지 엑셀 업로드 자동추출(excelExtractor.js) 회귀 테스트
 ```
 
@@ -77,7 +77,7 @@ pf-project-FINAL/
 ├── test-pf-cases.mjs          ← PF 사례 검증 회귀 테스트
 ├── test-excel-extractor.mjs   ← 사업수지 엑셀 자동추출 회귀 테스트
 ├── data/
-│   └── pf-cases/               ← PF 사례 11건(케이스별 JSON) + 스키마 설명(README.md)
+│   └── pf-cases/               ← PF 사례 13건(케이스별 JSON) + 스키마 설명(README.md)
 ├── docs/superpowers/
 │   ├── specs/                  ← 브레인스토밍 결과 설계 문서
 │   └── plans/                  ← 구현 계획 문서
